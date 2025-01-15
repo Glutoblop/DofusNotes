@@ -1,0 +1,12 @@
+name: changelogtracker
+
+services:
+  dofessional:
+    restart: always
+    build: .
+    volumes:
+      - db_cache:/app/ChangeLogTracker
+
+volumes:
+  db_cache:
+    
