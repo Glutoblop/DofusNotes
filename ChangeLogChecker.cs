@@ -168,15 +168,22 @@ namespace ChangeLogTracker
                 var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
                 if (lastChangeLog != null && changeData.Date <= lastChangeLog.Date)
                 {
-                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Date:yyyy/MM/dd}");
+                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Date}");
                     continue;
                 }
 
                 var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
 
                 var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
-                var content = $"{roleMention}# Change Log Posted - {changeData.Date:yyyy/MM/dd}\n\n{changeData.URL}";
-                await txtChannel.SendMessageAsync(content);
+                var content = $"{roleMention}# Change Log Posted - {changeData.Date}\n\n{changeData.URL}";
+                try
+                {
+                    await txtChannel.SendMessageAsync(content);
+                }
+                catch (Exception ex)
+                {
+
+                }
 
                 await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}", changeData);
             }
