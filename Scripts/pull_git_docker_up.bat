@@ -12,6 +12,6 @@ echo f | xcopy ".\config.json" ".\build\config.json"
 
 :: Launch docker-compose inside build folder 
 cd ./build
-call docker-compose up -d
+call docker-compose up -d --build
 
 ::set /p DUMMY=Hit ENTER to continue...
