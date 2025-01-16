@@ -4,6 +4,5 @@
     {
         public string Title;
         public string URL;
-        public DateOnly Date;
     }
 }

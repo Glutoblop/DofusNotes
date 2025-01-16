@@ -106,21 +106,60 @@ namespace ChangeLogTracker
                 {
                     ChangeLogData changeLogData = new ChangeLogData();
 
-                    var title = changeNode.InnerText;
-                    title = title.Replace(" ", "");
-                    title = title.Replace("\n", "");
-                    changeLogData.Title = title;
+                    var titles = new List<string>();
 
-                    var date = changeNode.InnerText;
-                    var dateSplit = date.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var checkDate in dateSplit)
+                    var title = changeNode.InnerText;
+                    title = title.Replace("\n", "");
+
+                    var titleSplit = title.Split('-');
+                    foreach (var sTitle in titleSplit)
                     {
-                        if (DateOnly.TryParse(checkDate, out var changeDate))
+                        var newTitle = "";
+                        int i = 0;
+                        for (; i < sTitle.Length; i++)
                         {
-                            changeLogData.Date = changeDate;
-                            break;
+                            if (sTitle[i] != ' ') break;
                         }
+                        int spaceCount = 0;
+                        for (; i < sTitle.Length; i++)
+                        {
+                            if (sTitle[i] == ' ')
+                            {
+                                spaceCount++;
+                            }
+                            else
+                            {
+                                spaceCount = 0;
+                            }
+
+                            if (spaceCount > 1)
+                            {
+                                break;
+                            }
+
+                            newTitle += sTitle[i];
+                        }
+                        titles.Add(newTitle);
                     }
+
+                    for (int i = 0; i < titles.Count; i++)
+                    {
+                        string? t = titles[i];
+                        changeLogData.Title += $"{t}";
+                        if (i != titles.Count - 1) changeLogData.Title += "- ";
+                    }
+
+                    //var date = changeNode.InnerText;
+                    //var dateSplit = date.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+                    //foreach (var checkDate in dateSplit)
+                    //{
+                    //    if (DateOnly.TryParse(checkDate, out var changeDate))
+                    //    {
+                    //        TODO - This is broken when dockerised, always 01/01/0001
+                    //        changeLogData.Date = changeDate;
+                    //        break;
+                    //    }
+                    //}
 
                     var linkNode = changeNode.ChildNodes.FirstOrDefault(s => s.Name == "a");
                     if (linkNode != null && linkNode.Attributes.Contains("href"))
@@ -166,16 +205,17 @@ namespace ChangeLogTracker
                 }
 
                 var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
-                if (lastChangeLog != null && changeData.Date <= lastChangeLog.Date)
+                //If you have previously shown this change log, then ignore it.
+                if (lastChangeLog != null && changeData.URL == lastChangeLog.URL)
                 {
-                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Date}");
+                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Title}");
                     continue;
                 }
 
                 var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
 
                 var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
-                var content = $"{roleMention}# Change Log Posted - {changeData.Date}\n\n{changeData.URL}";
+                var content = $"{roleMention}# Change Log Posted - {changeData.Title}\n\n{changeData.URL}";
                 try
                 {
                     await txtChannel.SendMessageAsync(content);
