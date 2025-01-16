@@ -146,18 +146,28 @@ namespace ChangeLogTracker
         {
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
+            var logger = _Services.GetRequiredService<ILogger>();
 
             foreach (var guild in client.Guilds)
             {
                 var hostedChanel = await db.GetAsync<HostedChannel>($"HostedChannel/{guild.Id}");
-                if (hostedChanel == null) continue;
+                if (hostedChanel == null)
+                {
+                    logger.Log($"No HostedChannel data for guild {guild.Name}");
+                    continue;
+                }
 
                 var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
-                if (channel is not ITextChannel txtChannel) continue;
+                if (channel is not ITextChannel txtChannel)
+                {
+                    logger.Log($"Channel {channel.Name} for {guild.Name} not a TextChannel");
+                    continue;
+                }
 
                 var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
                 if (lastChangeLog != null && changeData.Date <= lastChangeLog.Date)
                 {
+                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Date:yyyy/MM/dd}");
                     continue;
                 }
 
@@ -167,11 +177,7 @@ namespace ChangeLogTracker
                 var content = $"{roleMention}# Change Log Posted - {changeData.Date:yyyy/MM/dd}\n\n{changeData.URL}";
                 await txtChannel.SendMessageAsync(content);
 
-                if (lastChangeLog == null)
-                {
-                    lastChangeLog = changeData;
-                }
-                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}", lastChangeLog);
+                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}", changeData);
             }
         }
     }
