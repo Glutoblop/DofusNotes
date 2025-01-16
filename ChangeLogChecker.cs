@@ -29,6 +29,11 @@ namespace ChangeLogTracker
             _Ticker.Start();
         }
 
+        public void TriggerNow()
+        {
+            Task.Run(() => OnTick());
+        }
+
         private async Task OnTick()
         {
             if (_IsProcessing) return;
@@ -86,7 +91,7 @@ namespace ChangeLogTracker
             return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
         }
 
-        public async Task<List<ChangeLogData>> FetchChangelogs(string changeLogPage)
+        private async Task<List<ChangeLogData>> FetchChangelogs(string changeLogPage)
         {
             var db = _Services.GetRequiredService<IDatabase>();
 
