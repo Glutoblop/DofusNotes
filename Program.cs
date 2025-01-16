@@ -49,7 +49,7 @@ namespace ChangeLogTracker
                         }))
                         .AddSingleton<ILogger>(s => new ConsoleLogger(ConstantData.LogType))
                         .AddSingleton<IDatabase>(s => new CachedDatabase())
-                        .AddSingleton(s => new ProfessionFinder(s))
+                        .AddSingleton(s => new ChangeLogChecker(s))
                     ).Build();
 
                 await RunAsync(host);
@@ -74,7 +74,7 @@ namespace ChangeLogTracker
             var sCommands = services.GetRequiredService<InteractionService>();
             await services.GetRequiredService<InteractionHandler>().InitialiseAsync();
 
-            services.GetRequiredService<ProfessionFinder>().Start();
+            services.GetRequiredService<ChangeLogChecker>().Start();
 
             client.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Log: {msg}"); };
             sCommands.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Interaction: {msg}"); };
