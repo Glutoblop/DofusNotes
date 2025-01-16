@@ -17,9 +17,14 @@ namespace ChangeLogTracker
         [SlashCommand("trigger", "Trigger the bot to query the change log changes.", runMode: RunMode.Async)]
         public async Task TriggerChangelogQuery()
         {
-            _Services.GetRequiredService<ChangeLogChecker>().TriggerNow();
+            await DeferAsync(true);
 
-            await RespondAsync("Triggered", ephemeral: true);
+            await _Services.GetRequiredService<ChangeLogChecker>().TriggerNow();
+
+            await ModifyOriginalResponseAsync(properties =>
+            {
+                properties.Content = "Triggered";
+            });
         }
     }
 }

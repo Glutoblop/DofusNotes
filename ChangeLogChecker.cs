@@ -29,15 +29,16 @@ namespace ChangeLogTracker
             _Ticker.Start();
         }
 
-        public void TriggerNow()
+        public async Task TriggerNow()
         {
-            Task.Run(() => OnTick());
+            await OnTick();
         }
 
         private async Task OnTick()
         {
             if (_IsProcessing) return;
             _IsProcessing = true;
+
             var changeLogs = await FetchChangelogs("https://www.dofus.com/fr/mmorpg/actualites/maj/correctifs");
 
             if (changeLogs != null && changeLogs.Count > 0)
