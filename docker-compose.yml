@@ -5,7 +5,7 @@ services:
     restart: always
     build: .
     volumes:
-      - db_cache:/app/ChangeLogTracker
+      - db_cache:/app/ChangeLogCache
 
 volumes:
   db_cache:

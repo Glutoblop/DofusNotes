@@ -68,7 +68,7 @@ namespace ChangeLogTracker
             var config = services.GetRequiredService<IConfigurationRoot>();
 
             var db = services.GetRequiredService<IDatabase>();
-            await db.Init("ChangeLogTracker");
+            await db.Init("ChangeLogCache");
 
             var client = services.GetRequiredService<DiscordSocketClient>();
             var sCommands = services.GetRequiredService<InteractionService>();
