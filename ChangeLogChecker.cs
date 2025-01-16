@@ -22,10 +22,10 @@ namespace ChangeLogTracker
         {
             _Services = services;
         }
-        
+
         public void Start()
         {
-            _Ticker = new BackgroundTask(TICK_INTERVAL_TIMESPAN, OnTick, TimeSpan.FromMinutes(10));
+            _Ticker = new BackgroundTask(TICK_INTERVAL_TIMESPAN, OnTick, TICK_INTERVAL_TIMESPAN);
             _Ticker.Start();
         }
 
@@ -43,14 +43,7 @@ namespace ChangeLogTracker
             if (changeLogs != null && changeLogs.Count > 0)
             {
                 var newChange = changeLogs.First();
-
-                var db = _Services.GetService<IDatabase>();
-                var lastChangeLog = await db.GetAsync<ChangeLogData>("LastChangeLog");
-                if (lastChangeLog == null || newChange.Date > lastChangeLog.Date)
-                {
-                    await NotifyChannels(newChange);
-                    await db.PutAsync<ChangeLogData>("LastChangeLog", newChange);
-                }
+                await NotifyChannels(newChange);
             }
 
             _IsProcessing = false;
@@ -162,11 +155,23 @@ namespace ChangeLogTracker
                 var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
                 if (channel is not ITextChannel txtChannel) continue;
 
+                var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
+                if (lastChangeLog != null && changeData.Date <= lastChangeLog.Date)
+                {
+                    continue;
+                }
+
                 var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
 
                 var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
                 var content = $"{roleMention}# Change Log Posted - {changeData.Date:yyyy/MM/dd}\n\n{changeData.URL}";
                 await txtChannel.SendMessageAsync(content);
+
+                if (lastChangeLog == null)
+                {
+                    lastChangeLog = changeData;
+                }
+                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}", lastChangeLog);
             }
         }
     }
