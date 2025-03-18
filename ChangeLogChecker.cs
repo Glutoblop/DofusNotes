@@ -190,42 +190,46 @@ namespace ChangeLogTracker
 
             foreach (var guild in client.Guilds)
             {
-                var hostedChanel = await db.GetAsync<HostedChannel>($"HostedChannel/{guild.Id}");
-                if (hostedChanel == null)
-                {
-                    logger.Log($"No HostedChannel data for guild {guild.Name}");
-                    continue;
-                }
-
-                var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
-                if (channel is not ITextChannel txtChannel)
-                {
-                    logger.Log($"Channel {channel.Name} for {guild.Name} not a TextChannel");
-                    continue;
-                }
-
-                var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
-                //If you have previously shown this change log, then ignore it.
-                if (lastChangeLog != null && changeData.URL == lastChangeLog.URL)
-                {
-                    logger.Log($"{guild.Name} previously updated for {lastChangeLog.Title}");
-                    continue;
-                }
-
-                var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
-
-                var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
-                var content = $"{roleMention}# Change Log Posted - {changeData.Title}\n\n{changeData.URL}";
+                ITextChannel txtChannel = null;
                 try
                 {
+                    var hostedChanel = await db.GetAsync<HostedChannel>($"HostedChannel/{guild.Id}");
+                    if (hostedChanel == null)
+                    {
+                        logger.Log($"No HostedChannel data for guild {guild.Name}");
+                        continue;
+                    }
+
+                    var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
+                    if (channel is not ITextChannel)
+                    {
+                        logger.Log($"Channel {channel.Name} for {guild.Name} not a TextChannel");
+                        continue;
+                    }
+                    txtChannel = (ITextChannel)channel;
+
+                    var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
+                    //If you have previously shown this change log, then ignore it.
+                    if (lastChangeLog != null && changeData.URL == lastChangeLog.URL)
+                    {
+                        logger.Log($"{guild.Name} previously updated for {lastChangeLog.Title}");
+                        continue;
+                    }
+
+                    var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
+
+                    var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
+                    var content = $"{roleMention}# Change Log Posted - {changeData.Title}\n\n{changeData.URL}";
+
                     await txtChannel.SendMessageAsync(content);
                 }
                 catch (Exception ex)
                 {
-
+                    logger.Log($"{ex}");
                 }
 
-                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}", changeData);
+                if (txtChannel == null) continue;
+                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{txtChannel.Id}", changeData);
             }
         }
     }
