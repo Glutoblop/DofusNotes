@@ -207,9 +207,9 @@ namespace ChangeLogTracker
                     }
 
                     var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
-                    if (channel is not ITextChannel)
+                    if (channel == null || channel is not ITextChannel)
                     {
-                        logger.Log($"Channel {channel.Name} for {guild.Name} not a TextChannel");
+                        logger.Log($"Channel {(channel?.Name ?? "[null]")} for {guild.Name} not a TextChannel");
                         continue;
                     }
                     txtChannel = (ITextChannel)channel;
