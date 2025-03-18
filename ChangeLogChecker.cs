@@ -207,7 +207,15 @@ namespace ChangeLogTracker
                     }
 
                     var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
-                    if (channel == null || channel is not ITextChannel)
+
+                    if(channel == null)
+                    {
+                        await db.DeleteAsync($"HostedChannel/{guild.Id}"); 
+                        logger.Log($"Channel was null, removed HostedChannel from data.");
+                        continue;
+                    }
+
+                    if (channel is not ITextChannel)
                     {
                         logger.Log($"Channel {(channel?.Name ?? "[null]")} for {guild.Name} not a TextChannel");
                         continue;
