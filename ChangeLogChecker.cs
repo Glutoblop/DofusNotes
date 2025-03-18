@@ -190,6 +190,12 @@ namespace ChangeLogTracker
 
             foreach (var guild in client.Guilds)
             {
+                if (guild == null)
+                {
+                    logger.Log($"Guild is null.. for some reason?");
+                    continue;
+                }
+
                 ITextChannel txtChannel = null;
                 try
                 {
