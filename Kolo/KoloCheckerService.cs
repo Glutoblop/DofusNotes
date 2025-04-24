@@ -2,7 +2,6 @@
 using ChangeLogTracker.Data;
 using ChangeLogTracker.Timer;
 using Discord;
-using Discord.Rest;
 using Discord.WebSocket;
 using DofusNotes.Data;
 using HtmlAgilityPack;
@@ -13,12 +12,32 @@ namespace DofusNotes.PatchNotes
 {
     public class KoloCheckerService
     {
+        private static string[] CLASS_NAMES = new string[]
+       {
+            "Feca",
+            "Osamodas",
+            "Enutrof",
+            "Sram",
+            "Xelor",
+            "Ecaflip",
+            "Eniripsa",
+            "Iop",
+            "Cra",
+            "Sadida",
+            "Sacrier",
+            "Pandawa",
+            "Rogue",
+            "Masqueraider",
+            "Foggernaut",
+            "Eliotrope",
+            "Huppermage",
+            "Ouginak",
+            "Forgelance"
+       };
+
+
         /// <summary>How often it will attempt to query new change logs.</summary>
-#if DEBUG
-        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromSeconds(5);
-#else
         public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromMinutes(30);
-#endif
 
         private IServiceProvider _Services;
 
@@ -56,7 +75,7 @@ namespace DofusNotes.PatchNotes
                 playlistRankings.Add(rankings);
             }
 
-            await UpdateChannels(playlistRankings);
+            await UpdateChannels(KolossiumRanking.KolossiumPlaylists, playlistRankings);
 
             _IsProcessing = false;
         }
@@ -84,20 +103,10 @@ namespace DofusNotes.PatchNotes
             await db.PutAsync($"PollingDelay", timestamp);
         }
 
-        private static string Base64Encode(string plainText)
+        public async Task<List<KolossiumRanking>> GetKolossiumRankingsAsync(string url)
         {
-            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-            return Convert.ToBase64String(plainTextBytes);
-        }
+            await AwaitPollingDelay();
 
-        private static string Base64Decode(string base64EncodedData)
-        {
-            var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
-            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
-        }
-
-        public static async Task<List<KolossiumRanking>> GetKolossiumRankingsAsync(string url)
-        {
             var rankings = new List<KolossiumRanking>();
 
             try
@@ -181,7 +190,7 @@ namespace DofusNotes.PatchNotes
             return rankings;
         }
 
-        public async Task UpdateChannels(List<List<KolossiumRanking>> koloData)
+        public async Task UpdateChannels(string[] playlists, List<List<KolossiumRanking>> koloData)
         {
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
@@ -245,7 +254,7 @@ namespace DofusNotes.PatchNotes
                     {
                         var embedBuilder = new EmbedBuilder
                         {
-                            Title = $"{KolossiumRanking.KolossiumPlaylists[i]} Leader Board",
+                            Title = $"{playlists[i]} Leader Board",
                         };
 
                         var content = "";
@@ -263,9 +272,26 @@ namespace DofusNotes.PatchNotes
                         }
 
                         embedBuilder.Description = content;
+
+                        List<Tuple<string, float>> usageData = new();
+                        foreach (var className in CLASS_NAMES)
+                        {
+                            var percentage = GetPercentageOfClass(koloData[i], className);
+                            if (percentage > 0)
+                            {
+                                usageData.Add(new Tuple<string, float>(className, percentage));
+                            }
+                        }
+                        usageData = usageData.OrderBy(s => s.Item1).ToList();
+
+                        foreach (var usage in usageData)
+                        {
+                            embedBuilder.AddField($"{usage.Item1}", $"{usage.Item2}%", true);
+                        }
+
                         rankingEmbeds.Add(embedBuilder);
                     }
-                                        
+
                     await textChannel.SendMessageAsync($"# Kolossium Leaderboards {DateTime.UtcNow:yyyy/MM/dd}",
                         embeds: rankingEmbeds.Select(s => s.Build()).ToArray());
                 }
@@ -275,5 +301,20 @@ namespace DofusNotes.PatchNotes
                 }
             }
         }
+
+
+        public static float GetPercentageOfClass(List<KolossiumRanking> rankings, string className)
+        {
+            var total = rankings.Count;
+            if (total == 0) return 0;
+            var matching = rankings.Count(s => s.Class == className);
+            if (matching == 0)
+            {
+                return 0;
+            }
+
+            return (float)((float)total / (float)total * (float)matching);
+        }
+
     }
 }

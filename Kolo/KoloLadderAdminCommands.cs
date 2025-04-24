@@ -15,8 +15,8 @@ namespace DofusNotes.Kolo
         }
 
         [RequireOwner]
-        [SlashCommand("add_kolo_data", "Assigns this channel as the channel to show kolo info in", runMode: RunMode.Async)]
-        public async Task SetKoloChannel()
+        [SlashCommand("kolo_trigger", "Triggers kolo leaderboard tick", runMode: RunMode.Async)]
+        public async Task TriggerKolo()
         {
             await DeferAsync(true);
 
