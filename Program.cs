@@ -6,12 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
-using ChangeLogTracker;
-using ChangeLogTracker.Core;
 using ChangeLogTracker.Core.Interfaces;
 using ChangeLogTracker.Core.Logging;
 using ChangeLogTracker.Database;
 using RunMode = Discord.Interactions.RunMode;
+using DofusNotes.PatchNotes;
 
 namespace ChangeLogTracker
 {
@@ -50,6 +49,7 @@ namespace ChangeLogTracker
                         .AddSingleton<ILogger>(s => new ConsoleLogger(ConstantData.LogType))
                         .AddSingleton<IDatabase>(s => new CachedDatabase())
                         .AddSingleton(s => new ChangeLogChecker(s))
+                        .AddSingleton(s => new KoloCheckerService(s))
                     ).Build();
 
                 await RunAsync(host);
@@ -75,6 +75,7 @@ namespace ChangeLogTracker
             await services.GetRequiredService<InteractionHandler>().InitialiseAsync();
 
             services.GetRequiredService<ChangeLogChecker>().Start();
+            services.GetRequiredService<KoloCheckerService>().Start();
 
             client.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Log: {msg}"); };
             sCommands.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Interaction: {msg}"); };

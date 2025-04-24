@@ -1,7 +1,7 @@
 ﻿using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ChangeLogTracker
+namespace DofusNotes.PatchNotes
 {
     [RequireOwner]
     public class ChangeLogAdminCommands : InteractionModuleBase<InteractionContext>

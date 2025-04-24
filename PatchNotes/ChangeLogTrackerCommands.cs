@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ChangeLogTracker.Core.Interfaces;
 using ChangeLogTracker.Data;
 
-namespace ChangeLogTracker
+namespace DofusNotes.PatchNotes
 {
     public class ChangeLogTrackerCommands : InteractionModuleBase<InteractionContext>
     {
@@ -27,7 +27,7 @@ namespace ChangeLogTracker
 
             var content = $"{role.Mention} will now be notified on change log notifications messages";
 
-            await db.PutAsync<NotifyRole>($"NotifyRole/{Context.Guild.Id}", notifyRole);
+            await db.PutAsync($"NotifyRole/{Context.Guild.Id}", notifyRole);
 
             await ModifyOriginalResponseAsync(properties =>
             {
@@ -46,7 +46,7 @@ namespace ChangeLogTracker
 
             var content = $"{textChannel.Mention} will now host the change log notifications messages";
 
-            await db.PutAsync<HostedChannel>($"HostedChannel/{Context.Guild.Id}", hostedChannel);
+            await db.PutAsync($"HostedChannel/{Context.Guild.Id}", hostedChannel);
 
             await ModifyOriginalResponseAsync(properties =>
             {
