@@ -1,12 +1,12 @@
-﻿using Discord;
-using Discord.Interactions;
-using Discord.Rest;
-using Microsoft.Extensions.DependencyInjection;
-using ChangeLogTracker.Core.Interfaces;
+﻿using ChangeLogTracker.Core.Interfaces;
 using ChangeLogTracker.Data;
+using Discord;
+using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DofusNotes.PatchNotes
 {
+    [RequireOwner]
     public class ChangeLogTrackerCommands : InteractionModuleBase<InteractionContext>
     {
         private IServiceProvider _Services;
@@ -16,6 +16,7 @@ namespace DofusNotes.PatchNotes
             _Services = services;
         }
 
+        [RequireOwner]
         [SlashCommand("set_changelog_role", "Set the role to notifiy when change logs are posted.", runMode: RunMode.Async)]
         public async Task SetChangelogRole(IRole role)
         {
@@ -35,6 +36,7 @@ namespace DofusNotes.PatchNotes
             });
         }
 
+        [RequireOwner]
         [SlashCommand("set_changelog_channel", "Channel to post notifications about change logs go.", runMode: RunMode.Async)]
         public async Task SetDofusServerHostedChannel(ITextChannel textChannel)
         {

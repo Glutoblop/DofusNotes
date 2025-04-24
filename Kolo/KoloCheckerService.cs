@@ -2,6 +2,7 @@
 using ChangeLogTracker.Data;
 using ChangeLogTracker.Timer;
 using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
 using DofusNotes.Data;
 using HtmlAgilityPack;
@@ -13,7 +14,11 @@ namespace DofusNotes.PatchNotes
     public class KoloCheckerService
     {
         /// <summary>How often it will attempt to query new change logs.</summary>
-        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromMinutes(10);
+#if DEBUG
+        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromSeconds(5);
+#else
+        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromMinutes(30);
+#endif
 
         private IServiceProvider _Services;
 
@@ -29,11 +34,6 @@ namespace DofusNotes.PatchNotes
         {
             _Ticker = new BackgroundTask(TICK_INTERVAL_TIMESPAN, OnTick, TICK_INTERVAL_TIMESPAN);
             _Ticker.Start();
-
-            Task.Run(async () =>
-            {
-                await TriggerNow();
-            });
         }
 
         public async Task TriggerNow()
@@ -46,27 +46,17 @@ namespace DofusNotes.PatchNotes
             if (_IsProcessing) return;
             _IsProcessing = true;
 
-            //TODO - Check kolo website: 
-            //1v1: https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type=1V1
-            //2v2: https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type=2V2
-            //3v3: https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type=3V3
-
-            string[] KolossiumPlaylists = new[]
-            {
-                "1V1",
-                "2V2",
-                "3v3"
-            };
-
             List<List<KolossiumRanking>> playlistRankings = new();
 
-            for (int i = 0; i < KolossiumPlaylists.Length; i++)
+            for (int i = 0; i < KolossiumRanking.KolossiumPlaylists.Length; i++)
             {
                 string url = "https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={0}";
-                url = string.Format(url, KolossiumPlaylists[i]);
+                url = string.Format(url, KolossiumRanking.KolossiumPlaylists[i]);
                 List<KolossiumRanking> rankings = await GetKolossiumRankingsAsync(url);
                 playlistRankings.Add(rankings);
             }
+
+            await UpdateChannels(playlistRankings);
 
             _IsProcessing = false;
         }
@@ -191,104 +181,7 @@ namespace DofusNotes.PatchNotes
             return rankings;
         }
 
-        private async Task<List<ChangeLogData>> FetchChangelogs(string changeLogPage)
-        {
-            var db = _Services.GetRequiredService<IDatabase>();
-
-            await AwaitPollingDelay();
-
-            var web = new HtmlWeb();
-            var doc = await web.LoadFromWebAsync(changeLogPage);
-
-            await db.PutAsync($"LastUpdated", new TimeStamp() { Date = DateTime.UtcNow });
-
-            List<ChangeLogData> changelogs = new();
-
-            try
-            {
-                var changeNodes = doc.DocumentNode.SelectNodes("//div[contains(@class, 'ak-item-elt-title')]").ToList();
-
-                foreach (var changeNode in changeNodes)
-                {
-                    ChangeLogData changeLogData = new ChangeLogData();
-
-                    var titles = new List<string>();
-
-                    var title = changeNode.InnerText;
-                    title = title.Replace("\n", "");
-
-                    var titleSplit = title.Split('-');
-                    foreach (var sTitle in titleSplit)
-                    {
-                        var newTitle = "";
-                        int i = 0;
-                        for (; i < sTitle.Length; i++)
-                        {
-                            if (sTitle[i] != ' ') break;
-                        }
-                        int spaceCount = 0;
-                        for (; i < sTitle.Length; i++)
-                        {
-                            if (sTitle[i] == ' ')
-                            {
-                                spaceCount++;
-                            }
-                            else
-                            {
-                                spaceCount = 0;
-                            }
-
-                            if (spaceCount > 1)
-                            {
-                                break;
-                            }
-
-                            newTitle += sTitle[i];
-                        }
-                        titles.Add(newTitle);
-                    }
-
-                    for (int i = 0; i < titles.Count; i++)
-                    {
-                        string? t = titles[i];
-                        changeLogData.Title += $"{t}";
-                        if (i != titles.Count - 1) changeLogData.Title += "- ";
-                    }
-
-                    //var date = changeNode.InnerText;
-                    //var dateSplit = date.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-                    //foreach (var checkDate in dateSplit)
-                    //{
-                    //    if (DateOnly.TryParse(checkDate, out var changeDate))
-                    //    {
-                    //        TODO - This is broken when dockerised, always 01/01/0001
-                    //        changeLogData.Date = changeDate;
-                    //        break;
-                    //    }
-                    //}
-
-                    var linkNode = changeNode.ChildNodes.FirstOrDefault(s => s.Name == "a");
-                    if (linkNode != null && linkNode.Attributes.Contains("href"))
-                    {
-                        var linkValue = linkNode.Attributes["href"].Value;
-                        changeLogData.URL = $"https://www.dofus.com{linkValue}";
-                    }
-
-                    changelogs.Add(changeLogData);
-
-                }
-
-                return changelogs;
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-            return null;
-        }
-
-        public async Task NotifyChannels(ChangeLogData changeData)
+        public async Task UpdateChannels(List<List<KolossiumRanking>> koloData)
         {
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
@@ -302,13 +195,13 @@ namespace DofusNotes.PatchNotes
                     continue;
                 }
 
-                ITextChannel txtChannel = null;
+                ITextChannel textChannel = null;
                 try
                 {
-                    var hostedChanel = await db.GetAsync<HostedChannel>($"HostedChannel/{guild.Id}");
+                    var hostedChanel = await db.GetAsync<HostedChannel>($"KoloHostedChannel/{guild.Id}");
                     if (hostedChanel == null)
                     {
-                        logger.Log($"No HostedChannel data for guild {guild.Name}");
+                        logger.Log($"No KoloHostedChannel data for guild {guild.Name}");
                         continue;
                     }
 
@@ -316,8 +209,8 @@ namespace DofusNotes.PatchNotes
 
                     if (channel == null)
                     {
-                        await db.DeleteAsync($"HostedChannel/{guild.Id}");
-                        logger.Log($"Channel was null, removed HostedChannel from data.");
+                        await db.DeleteAsync($"KoloHostedChannel/{guild.Id}");
+                        logger.Log($"Channel was null, removed KoloHostedChannel from data.");
                         continue;
                     }
 
@@ -326,30 +219,60 @@ namespace DofusNotes.PatchNotes
                         logger.Log($"Channel {channel?.Name ?? "[null]"} for {guild.Name} not a TextChannel");
                         continue;
                     }
-                    txtChannel = (ITextChannel)channel;
+                    textChannel = (ITextChannel)channel;
 
-                    var lastChangeLog = await db.GetAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{channel.Id}");
-                    //If you have previously shown this change log, then ignore it.
-                    if (lastChangeLog != null && changeData.URL == lastChangeLog.URL)
+                    // DELETE ALL OLD MESSAGES (Update maybe?)
+                    var msgCount = 0;
+                    do
                     {
-                        logger.Log($"{guild.Name} previously updated for {lastChangeLog.Title}");
-                        continue;
+                        msgCount = 0;
+                        var eventMessages = await textChannel.GetMessagesAsync(100).FlattenAsync();
+                        foreach (var eventMessage in eventMessages)
+                        {
+                            if (eventMessage.Author.Id != client.CurrentUser.Id)
+                            {
+                                continue;
+                            }
+
+                            await textChannel.DeleteMessageAsync(eventMessage);
+                            msgCount++;
+                        }
+                    } while (msgCount > 0);
+
+                    List<EmbedBuilder> rankingEmbeds = new();
+
+                    for (int i = 0; i < koloData.Count; i++)
+                    {
+                        var embedBuilder = new EmbedBuilder
+                        {
+                            Title = $"{KolossiumRanking.KolossiumPlaylists[i]} Leader Board",
+                        };
+
+                        var content = "";
+
+                        for (int j = 0; j < 10; j++)
+                        {
+                            string playerInfo = "* ";
+                            if (j == 0) playerInfo += "🥇 ";
+                            else if (j == 1) playerInfo += "🥈 ";
+                            else if (j == 2) playerInfo += "🥉 ";
+                            playerInfo += $"**{koloData[i][j].Name}** | {koloData[i][j].Class} | {koloData[i][j].Rating} | {koloData[i][j].Winrate}";
+
+                            if (j != 0) content += "\n";
+                            content += playerInfo;
+                        }
+
+                        embedBuilder.Description = content;
+                        rankingEmbeds.Add(embedBuilder);
                     }
-
-                    var notifyRole = await db.GetAsync<NotifyRole>($"NotifyRole/{guild.Id}");
-
-                    var roleMention = notifyRole != null ? $"<@&{notifyRole.RoleId}>\n" : "";
-                    var content = $"{roleMention}# Change Log Posted - {changeData.Title}\n\n{changeData.URL}";
-
-                    await txtChannel.SendMessageAsync(content);
+                                        
+                    await textChannel.SendMessageAsync($"# Kolossium Leaderboards {DateTime.UtcNow:yyyy/MM/dd}",
+                        embeds: rankingEmbeds.Select(s => s.Build()).ToArray());
                 }
                 catch (Exception ex)
                 {
                     logger.Log($"{ex}");
                 }
-
-                if (txtChannel == null) continue;
-                await db.PutAsync($"LastChangeLog/{guild.Id}/{txtChannel.Id}", changeData);
             }
         }
     }

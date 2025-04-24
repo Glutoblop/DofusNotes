@@ -2,6 +2,13 @@
 {
     public class KolossiumRanking
     {
+        public static string[] KolossiumPlaylists = new[]
+        {
+            "1V1",
+            "2V2",
+            "3v3"
+        };
+
         public int Rank { get; set; }
         public string Name { get; set; }
         public string Class { get; set; }
