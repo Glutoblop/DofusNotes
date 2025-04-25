@@ -37,7 +37,7 @@ namespace DofusNotes.PatchNotes
             "Forgelance"
        };
 
-        private static List<ScottPlot.Color> PIE_COLOUR = new List<ScottPlot.Color>
+        private static List<ScottPlot.Color> CHART_COLOUR = new List<ScottPlot.Color>
         {
             Colors.CornflowerBlue,
             Colors.MediumSeaGreen,
@@ -48,11 +48,11 @@ namespace DofusNotes.PatchNotes
             Colors.LightCoral,
             Colors.DarkKhaki,
             Colors.Violet,
-            Colors.DarkGreen, 
+            Colors.DarkGreen,
             Colors.DarkOrange,
-            Colors.Maroon, 
-            Colors.Olive, 
-            Colors.Pink, 
+            Colors.Maroon,
+            Colors.Olive,
+            Colors.Pink,
             Colors.Turquoise,
             Colors.Gold,
             Colors.Red, Colors.Green, Colors.Blue,
@@ -215,7 +215,7 @@ namespace DofusNotes.PatchNotes
             return rankings;
         }
 
-        public async Task UpdateChannels(string[] playlists, List<List<KolossiumRanking>> koloData)
+        public async Task UpdateChannels(string[] playlists, List<List<KolossiumRanking>> allRankiongs)
         {
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
@@ -256,89 +256,49 @@ namespace DofusNotes.PatchNotes
                     textChannel = (ITextChannel)channel;
 
                     // DELETE ALL OLD MESSAGES (Update maybe?)
-                    var msgCount = 0;
-                    do
-                    {
-                        msgCount = 0;
-                        var eventMessages = await textChannel.GetMessagesAsync(100).FlattenAsync();
-                        foreach (var eventMessage in eventMessages)
-                        {
-                            if (eventMessage.Author.Id != client.CurrentUser.Id)
-                            {
-                                continue;
-                            }
+                    await DeleteOldMessages(client, textChannel);
 
-                            await textChannel.DeleteMessageAsync(eventMessage);
-                            msgCount++;
-                        }
-                    } while (msgCount > 0);
-
-                    for (int i = 0; i < koloData.Count; i++)
+                    for (int i = 0; i < allRankiongs.Count; i++)
                     {
                         var embedBuilder = new EmbedBuilder
                         {
                             Title = $"{playlists[i]} Leader Board",
                         };
 
-                        var content = "";
-
-                        for (int j = 0; j < 10; j++)
-                        {
-                            string playerInfo = "* ";
-                            if (j == 0) playerInfo += "🥇 ";
-                            else if (j == 1) playerInfo += "🥈 ";
-                            else if (j == 2) playerInfo += "🥉 ";
-                            playerInfo += $"**{koloData[i][j].Name}** | {koloData[i][j].Class} | {koloData[i][j].Rating} | {koloData[i][j].Winrate}";
-
-                            if (j != 0) content += "\n";
-                            content += playerInfo;
-                        }
-
+                        List<KolossiumRanking> ladder = allRankiongs[i];
+                        string content = GenerateRankList(ladder);
                         embedBuilder.Description = content;
 
-                        List<Tuple<string, double>> usageData = new();
-                        foreach (var className in CLASS_NAMES)
-                        {
-                            var percentage = GetPercentageOfClass(koloData[i], className);
-                            if (percentage > 0)
-                            {
-                                usageData.Add(new Tuple<string, double>(className, percentage));
-                            }
-                        }
-                        usageData = usageData.OrderBy(s => s.Item2).ToList();
-
+                        List<Tuple<string, double>> usageData = GenerateClassUsageData(ladder);
                         double[] values = usageData.Select(s => s.Item2).ToArray();
                         string[] labels = usageData.Select(s => s.Item1).ToArray();
 
-                        // Create pie slices
-                        List<PieSlice> slices = new();
-                        for (int sliceIndex = 0; sliceIndex < values.Length; sliceIndex++)
-                        {
-                            slices.Add(new PieSlice()
-                            {
-                                Value = values[sliceIndex],
-                                FillColor = PIE_COLOUR[sliceIndex % PIE_COLOUR.Count],
-                                LabelFontSize = 30,
-                                LabelFontColor = Colors.White,
-                                LabelBorderColor = Colors.Black,
-                                LabelAlignment = Alignment.MiddleCenter,
-                                LegendText = $"{labels[sliceIndex]} ({values[sliceIndex]}%)"
-                            });
-                        }
-
                         // Create plot
                         var plt = new ScottPlot.Plot();
-                        var pie = plt.Add.Pie(slices);
 
-                        // Style the pie
-                        pie.ExplodeFraction = 0.0;
-                        pie.SliceLabelDistance = 1.0;
+                        // set the label for each bar
+                        var barPlot = plt.Add.Bars(values);
+                        for (int barIndex = 0; barIndex < barPlot.Bars.Count; barIndex++)
+                        {
+                            Bar? bar = barPlot.Bars[barIndex];
+                            bar.Label = $"{labels[barIndex]} ({bar.Value}%)";
+                            bar.FillColor = CHART_COLOUR[barIndex];
+                        }
+
+                        // customize label style
+                        barPlot.ValueLabelStyle.Bold = true;
+                        barPlot.ValueLabelStyle.FontSize = 18;
+                        barPlot.Horizontal = true;
+                        barPlot.ValueLabelStyle.ForeColor = Colors.White;
+
+                        // add extra margin to account for label
+                        plt.Axes.SetLimitsX(0, barPlot.Bars.Max(s => s.Value) * 2);
 
                         // Make it clean and modern
                         plt.Axes.Frameless();
                         plt.HideGrid();
                         plt.FigureBackground.Color = Colors.Transparent;
-                        plt.Title($"{playlists[i]} Class Usage", size: 60);
+                        plt.Title($"{playlists[i]} Top 100 Class Breakdown", size: 60);
                         plt.Axes.Color(Colors.White);
 
                         plt.ShowLegend();
@@ -360,7 +320,7 @@ namespace DofusNotes.PatchNotes
                         await msg.ModifyAsync(properties =>
                         {
                             properties.Attachments = new Optional<IEnumerable<FileAttachment>>(new List<FileAttachment>()
-                        { new(pngStream, "piechart.png") });
+                        { new(pngStream, "chart.png") });
                         });
                     }
                 }
@@ -369,6 +329,63 @@ namespace DofusNotes.PatchNotes
                     logger.Log($"{ex}");
                 }
             }
+        }
+
+        private static List<Tuple<string, double>> GenerateClassUsageData(List<KolossiumRanking> ladder)
+        {
+            List<Tuple<string, double>> usageData =
+            [
+                .. from className in CLASS_NAMES
+                let percentage = GetPercentageOfClass(ladder, className)
+                where percentage > 0
+                select new Tuple<string, double>(className, percentage),
+            ];
+            usageData = usageData.OrderBy(s => s.Item2).ToList();
+            return usageData;
+        }
+
+        private static string GenerateRankList(List<KolossiumRanking> ladder)
+        {
+            var content = "";
+            for (int ladderIndex = 0; ladderIndex < ladder.Count; ladderIndex++)
+            {
+                if (ladderIndex == 50) break;
+
+                KolossiumRanking playerData = ladder[ladderIndex];
+
+                string playerInfo = "* ";
+                if (ladderIndex == 0) playerInfo += "🥇 ";
+                else if (ladderIndex == 1) playerInfo += "🥈 ";
+                else if (ladderIndex == 2) playerInfo += "🥉 ";
+                else playerInfo += $"[{ladderIndex + 1}] ";
+
+                playerInfo += $"**{playerData.Name}** | {ladder[ladderIndex].Class} | {ladder[ladderIndex].Rating} | {ladder[ladderIndex].Winrate}";
+
+                if (ladderIndex != 0) content += "\n";
+                content += playerInfo;
+            }
+
+            return content;
+        }
+
+        private static async Task DeleteOldMessages(DiscordSocketClient client, ITextChannel textChannel)
+        {
+            var msgCount = 0;
+            do
+            {
+                msgCount = 0;
+                var eventMessages = await textChannel.GetMessagesAsync(100).FlattenAsync();
+                foreach (var eventMessage in eventMessages)
+                {
+                    if (eventMessage.Author.Id != client.CurrentUser.Id)
+                    {
+                        continue;
+                    }
+
+                    await textChannel.DeleteMessageAsync(eventMessage);
+                    msgCount++;
+                }
+            } while (msgCount > 0);
         }
 
         public static float GetPercentageOfClass(List<KolossiumRanking> rankings, string className)
