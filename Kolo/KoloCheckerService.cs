@@ -9,7 +9,6 @@ using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
-using ScottPlot.Statistics;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -71,6 +70,8 @@ namespace DofusNotes.PatchNotes
         private BackgroundTask _Ticker;
         private bool _IsProcessing = false;
 
+        private bool _ForceUpdate = false;
+
         public KoloCheckerService(IServiceProvider services)
         {
             _Services = services;
@@ -84,6 +85,7 @@ namespace DofusNotes.PatchNotes
 
         public async Task TriggerNow()
         {
+            _ForceUpdate = true;
             await OnTick();
         }
 
@@ -102,8 +104,7 @@ namespace DofusNotes.PatchNotes
             foreach (KolossiumLadder.EKolossiumPlaylist playlist in playLists)
             {
 #if !DEBUG
-                var check = await db.GetAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist));
-                if (check != null)
+                if (!_ForceUpdate && await db.GetAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist)) != null)
                 {
                     _IsProcessing = false;
                     Console.WriteLine($"Kolo data already exists, ending early");
