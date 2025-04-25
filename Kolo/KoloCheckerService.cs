@@ -273,55 +273,10 @@ namespace DofusNotes.PatchNotes
                         double[] values = usageData.Select(s => s.Item2).ToArray();
                         string[] labels = usageData.Select(s => s.Item1).ToArray();
 
-                        // Create plot
-                        var plt = new ScottPlot.Plot();
-
-                        // set the label for each bar
-                        var barPlot = plt.Add.Bars(values);
-                        for (int barIndex = 0; barIndex < barPlot.Bars.Count; barIndex++)
-                        {
-                            Bar? bar = barPlot.Bars[barIndex];
-                            bar.Label = $"{labels[barIndex]} ({bar.Value}%)";
-                            bar.FillColor = CHART_COLOUR[barIndex];
-                        }
-
-                        // customize label style
-                        barPlot.ValueLabelStyle.Bold = true;
-                        barPlot.ValueLabelStyle.FontSize = 18;
-                        barPlot.Horizontal = true;
-                        barPlot.ValueLabelStyle.ForeColor = Colors.White;
-
-                        // add extra margin to account for label
-                        plt.Axes.SetLimitsX(0, barPlot.Bars.Max(s => s.Value) * 2);
-
-                        // Make it clean and modern
-                        plt.Axes.Frameless();
-                        plt.HideGrid();
-                        plt.FigureBackground.Color = Colors.Transparent;
-                        plt.Title($"{playlists[i]} Top 100 Class Breakdown", size: 60);
-                        plt.Axes.Color(Colors.White);
-
-                        plt.ShowLegend();
-
-                        //------ EXPORT IMAGE
-                        var bytes = plt.GetImageBytes(1400, 900, ScottPlot.ImageFormat.Png);
-                        using MagickImage magickImage = new MagickImage(bytes);
-
-                        QuantizeSettings settings = new QuantizeSettings();
-                        settings.Colors = 256;
-                        magickImage.Quantize(settings);
-
-                        await using Stream pngStream = new MemoryStream();
-                        await magickImage.WriteAsync(pngStream);
-
-                        var msg = await textChannel.SendMessageAsync($"# {playlists[i]} Kolossium Leaderboard {DateTime.UtcNow:yyyy/MM/dd}",
+                        var msg = await textChannel.SendMessageAsync($"# 🏆 {playlists[i]} Kolossium Leaderboard 🏆\n`{DateTime.UtcNow:yyyy/MM/dd}`",
                         embed: embedBuilder.Build());
 
-                        await msg.ModifyAsync(properties =>
-                        {
-                            properties.Attachments = new Optional<IEnumerable<FileAttachment>>(new List<FileAttachment>()
-                        { new(pngStream, "chart.png") });
-                        });
+                        await UpdateWithUsageChart(playlists, i, values, labels, msg);
                     }
                 }
                 catch (Exception ex)
@@ -329,6 +284,54 @@ namespace DofusNotes.PatchNotes
                     logger.Log($"{ex}");
                 }
             }
+        }
+
+        private static async Task UpdateWithUsageChart(string[] playlists, int i, double[] values, string[] labels, IUserMessage msg)
+        {
+            // Create plot
+            var plt = new ScottPlot.Plot();
+
+            // set the label for each bar
+            var barPlot = plt.Add.Bars(values);
+            for (int barIndex = 0; barIndex < barPlot.Bars.Count; barIndex++)
+            {
+                Bar? bar = barPlot.Bars[barIndex];
+                bar.Label = $"{labels[barIndex]} ({bar.Value}%)";
+                bar.FillColor = CHART_COLOUR[barIndex];
+            }
+
+            // customize label style
+            barPlot.ValueLabelStyle.Bold = true;
+            barPlot.ValueLabelStyle.FontSize = 18;
+            barPlot.Horizontal = true;
+            barPlot.ValueLabelStyle.ForeColor = Colors.White;
+
+            // add extra margin to account for label
+            plt.Axes.SetLimitsX(0, barPlot.Bars.Max(s => s.Value) * 2);
+
+            // Make it clean and modern
+            plt.Axes.Frameless();
+            plt.HideGrid();
+            plt.FigureBackground.Color = Colors.Transparent;
+            plt.Title($"{playlists[i]} Top 100 Class Breakdown", size: 60);
+            plt.Axes.Color(Colors.White);
+
+            plt.ShowLegend();
+
+            //------ EXPORT IMAGE
+            var bytes = plt.GetImageBytes(1400, 900, ScottPlot.ImageFormat.Png);
+            var magickImage = new MagickImage(bytes);
+            QuantizeSettings settings = new QuantizeSettings();
+            settings.Colors = 256;
+            magickImage.Quantize(settings);
+            var pngStream = new MemoryStream();
+            await magickImage.WriteAsync(pngStream);
+
+            await msg.ModifyAsync(properties =>
+            {
+                properties.Attachments = new Optional<IEnumerable<FileAttachment>>(new List<FileAttachment>()
+                        { new(pngStream, "chart.png") });
+            });
         }
 
         private static List<Tuple<string, double>> GenerateClassUsageData(List<KolossiumRanking> ladder)
@@ -346,7 +349,7 @@ namespace DofusNotes.PatchNotes
 
         private static string GenerateRankList(List<KolossiumRanking> ladder)
         {
-            var content = "";
+            var content = "## Name | Class | Rating | Win Rate %\n";
             for (int ladderIndex = 0; ladderIndex < ladder.Count; ladderIndex++)
             {
                 if (ladderIndex == 50) break;
