@@ -92,6 +92,8 @@ namespace DofusNotes.PatchNotes
             if (_IsProcessing) return;
             _IsProcessing = true;
 
+            Console.WriteLine($"OnTick Processing..");
+
             var db = _Services.GetRequiredService<IDatabase>();
 
             List<KolossiumLadder> ladders = new();
@@ -104,6 +106,7 @@ namespace DofusNotes.PatchNotes
                 if (check != null)
                 {
                     _IsProcessing = false;
+                    Console.WriteLine($"Kolo data already exists, ending early");
                     return;
                 }
 #endif
@@ -115,6 +118,8 @@ namespace DofusNotes.PatchNotes
             }
             await UpdateLadderChannels(ladders);
 
+
+            Console.WriteLine($"Pushing data to Sheets..");
             var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
             foreach (var ladder in ladders)
             {
@@ -249,6 +254,8 @@ namespace DofusNotes.PatchNotes
 
         public async Task UpdateLadderChannels(List<KolossiumLadder> ladders)
         {
+            Console.WriteLine($"Updating Channels with Ladder Data...");
+
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
             var logger = _Services.GetRequiredService<ILogger>();
