@@ -63,8 +63,8 @@ namespace DofusNotes.PatchNotes
         };
 
 
-        /// <summary>How often it will attempt to query new change logs.</summary>
-        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromMinutes(30);
+        //Tick rate for when to update the information manually, long time considering it only needs to do it once a day. 
+        public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromHours(6);
 
         private IServiceProvider _Services;
 
