@@ -11,6 +11,7 @@ using ChangeLogTracker.Core.Logging;
 using ChangeLogTracker.Database;
 using RunMode = Discord.Interactions.RunMode;
 using DofusNotes.PatchNotes;
+using DofusNotes.Sheets;
 
 namespace ChangeLogTracker
 {
@@ -50,6 +51,7 @@ namespace ChangeLogTracker
                         .AddSingleton<IDatabase>(s => new CachedDatabase())
                         .AddSingleton(s => new ChangeLogChecker(s))
                         .AddSingleton(s => new KoloCheckerService(s))
+                        .AddSingleton(s => new GoogleSheetSaver(s))
                     ).Build();
 
                 await RunAsync(host);
@@ -76,6 +78,8 @@ namespace ChangeLogTracker
 
             services.GetRequiredService<ChangeLogChecker>().Start();
             services.GetRequiredService<KoloCheckerService>().Start();
+
+            services.GetRequiredService<GoogleSheetSaver>().SetAuth(config["serviceaccount"], config["sheetId"]);
 
             client.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Log: {msg}"); };
             sCommands.Log += async (msg) => { Console.WriteLine($"[{DateTime.Now:t}] Interaction: {msg}"); };

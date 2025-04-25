@@ -4,10 +4,12 @@ using ChangeLogTracker.Timer;
 using Discord;
 using Discord.WebSocket;
 using DofusNotes.Data;
+using DofusNotes.Sheets;
 using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
+using ScottPlot.Statistics;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -90,18 +92,34 @@ namespace DofusNotes.PatchNotes
             if (_IsProcessing) return;
             _IsProcessing = true;
 
+            var db = _Services.GetRequiredService<IDatabase>();
+
             List<KolossiumLadder> ladders = new();
 
             var playLists = Enum.GetValues(typeof(KolossiumLadder.EKolossiumPlaylist)).OfType<KolossiumLadder.EKolossiumPlaylist>().ToList();
             foreach (KolossiumLadder.EKolossiumPlaylist playlist in playLists)
             {
+#if !DEBUG
+                var check = await db.GetAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist));
+                if (check != null)
+                {
+                    _IsProcessing = false;
+                    return;
+                }
+#endif
+
                 string url = "https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={0}";
                 url = string.Format(url, KolossiumLadder.GetPlaylistParam(playlist));
                 var ladder = await GetKolossiumLadderAsync(playlist, url);
                 ladders.Add(ladder);
             }
-
             await UpdateLadderChannels(ladders);
+
+            var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
+            foreach (var ladder in ladders)
+            {
+                await googleSheet.PushDataToSheetAsync(ladder);
+            }
 
             _IsProcessing = false;
         }
