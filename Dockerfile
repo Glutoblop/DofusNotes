@@ -10,5 +10,9 @@ FROM mcr.microsoft.com/dotnet/runtime:8.0
 WORKDIR /app
 COPY --from=build /app/build .
 
+RUN apt-get update && \
+    apt-get install -y fonts-dejavu-core && \
+    apt-get clean
+
 # Entry point when the container starts
 CMD ["dotnet", "DofusNotes.dll"]
