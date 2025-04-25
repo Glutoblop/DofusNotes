@@ -37,6 +37,29 @@ namespace DofusNotes.PatchNotes
             "Forgelance"
        };
 
+        private static List<ScottPlot.Color> PIE_COLOUR = new List<ScottPlot.Color>
+        {
+            Colors.CornflowerBlue,
+            Colors.MediumSeaGreen,
+            Colors.Orange,
+            Colors.IndianRed,
+            Colors.MediumPurple,
+            Colors.SkyBlue,
+            Colors.LightCoral,
+            Colors.DarkKhaki,
+            Colors.Violet,
+            Colors.DarkGreen, 
+            Colors.DarkOrange,
+            Colors.Maroon, 
+            Colors.Olive, 
+            Colors.Pink, 
+            Colors.Turquoise,
+            Colors.Gold,
+            Colors.Red, Colors.Green, Colors.Blue,
+            Colors.Orange, Colors.Purple, Colors.Teal, Colors.Brown,
+            Colors.Cyan, Colors.Magenta, Colors.Navy, Colors.Lime,
+        };
+
 
         /// <summary>How often it will attempt to query new change logs.</summary>
         public static TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromMinutes(30);
@@ -287,23 +310,6 @@ namespace DofusNotes.PatchNotes
                         double[] values = usageData.Select(s => s.Item2).ToArray();
                         string[] labels = usageData.Select(s => s.Item1).ToArray();
 
-                        var customColors = new List<ScottPlot.Color>
-                        {
-                            Colors.CornflowerBlue,
-                            Colors.MediumSeaGreen,
-                            Colors.Orange,
-                            Colors.IndianRed,
-                            Colors.MediumPurple,
-                            Colors.SkyBlue,
-                            Colors.LightCoral,
-                            Colors.DarkKhaki,
-                            Colors.Violet, Colors.Gray, Colors.DarkGreen, Colors.DarkOrange,
-                            Colors.Maroon, Colors.Olive, Colors.Pink, Colors.Turquoise,
-                            Colors.Red, Colors.Green, Colors.Blue, Colors.Gold,
-                            Colors.Orange, Colors.Purple, Colors.Teal, Colors.Brown,
-                            Colors.Cyan, Colors.Magenta, Colors.Navy, Colors.Lime,
-                        };
-
                         // Create pie slices
                         List<PieSlice> slices = new();
                         for (int sliceIndex = 0; sliceIndex < values.Length; sliceIndex++)
@@ -311,8 +317,12 @@ namespace DofusNotes.PatchNotes
                             slices.Add(new PieSlice()
                             {
                                 Value = values[sliceIndex],
-                                Label = labels[sliceIndex],
-                                FillColor = customColors[sliceIndex % customColors.Count]
+                                FillColor = PIE_COLOUR[sliceIndex % PIE_COLOUR.Count],
+                                LabelFontSize = 30,
+                                LabelFontColor = Colors.White,
+                                LabelBorderColor = Colors.Black,
+                                LabelAlignment = Alignment.MiddleCenter,
+                                LegendText = $"{labels[sliceIndex]} ({values[sliceIndex]}%)"
                             });
                         }
 
@@ -321,17 +331,8 @@ namespace DofusNotes.PatchNotes
                         var pie = plt.Add.Pie(slices);
 
                         // Style the pie
-                        pie.ExplodeFraction = 0.3;
-                        pie.SliceLabelDistance = 3.0;
-
-                        foreach (var slice in pie.Slices)
-                        {
-                            slice.LabelFontSize = 30;
-                            slice.LabelFontColor = Colors.White;
-                            slice.LabelBorderColor = Colors.Black;
-                            slice.LabelAlignment = Alignment.MiddleCenter;
-                            slice.Label = $"{slice.Label} ({slice.Value}%)";
-                        }
+                        pie.ExplodeFraction = 0.0;
+                        pie.SliceLabelDistance = 1.0;
 
                         // Make it clean and modern
                         plt.Axes.Frameless();
@@ -341,7 +342,6 @@ namespace DofusNotes.PatchNotes
                         plt.Axes.Color(Colors.White);
 
                         plt.ShowLegend();
-                        plt.Legend.DisplayPlottableLegendItems = false;
 
                         //------ EXPORT IMAGE
                         var bytes = plt.GetImageBytes(1400, 900, ScottPlot.ImageFormat.Png);
