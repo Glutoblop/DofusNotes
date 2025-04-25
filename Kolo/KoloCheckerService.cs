@@ -280,8 +280,8 @@ namespace DofusNotes.PatchNotes
                         continue;
                     }
 
+                    logger.Log($"Fetching channel..");
                     var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
-
                     if (channel == null)
                     {
                         await db.DeleteAsync($"KoloHostedChannel/{guild.Id}");
@@ -298,6 +298,8 @@ namespace DofusNotes.PatchNotes
 
                     // DELETE ALL OLD MESSAGES (Update maybe?)
                     await DeleteOldMessages(client, textChannel);
+
+                    logger.Log($"Sending Messages to {guild.Name}..");
 
                     for (int i = 0; i < ladders.Count; i++)
                     {
@@ -412,24 +414,34 @@ namespace DofusNotes.PatchNotes
             return content;
         }
 
-        private static async Task DeleteOldMessages(DiscordSocketClient client, ITextChannel textChannel)
+        private async Task DeleteOldMessages(DiscordSocketClient client, ITextChannel textChannel)
         {
-            var msgCount = 0;
-            do
-            {
-                msgCount = 0;
-                var eventMessages = await textChannel.GetMessagesAsync(100).FlattenAsync();
-                foreach (var eventMessage in eventMessages)
-                {
-                    if (eventMessage.Author.Id != client.CurrentUser.Id)
-                    {
-                        continue;
-                    }
+            var logger = _Services.GetRequiredService<ILogger>();
+            logger.Log($"DeleteOldMessages ..");
 
-                    await textChannel.DeleteMessageAsync(eventMessage);
-                    msgCount++;
-                }
-            } while (msgCount > 0);
+            try
+            {
+                var msgCount = 0;
+                do
+                {
+                    msgCount = 0;
+                    var eventMessages = await textChannel.GetMessagesAsync(100).FlattenAsync();
+                    foreach (var eventMessage in eventMessages)
+                    {
+                        if (eventMessage.Author.Id != client.CurrentUser.Id)
+                        {
+                            continue;
+                        }
+
+                        await textChannel.DeleteMessageAsync(eventMessage);
+                        msgCount++;
+                    }
+                } while (msgCount > 0);
+            }
+            catch (Exception ex)
+            {
+                logger.Log($"DeleteOldMessages Error: {ex}");
+            }
         }
 
         public static float GetPercentageOfClass(KolossiumLadder ladder, string className)
