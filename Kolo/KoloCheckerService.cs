@@ -322,7 +322,7 @@ namespace DofusNotes.PatchNotes
                 }
                 catch (Exception ex)
                 {
-                    logger.Log($"{ex}");
+                    logger.Log($"UpdateLadderChannels Error: {ex}");
                 }
             }
         }
