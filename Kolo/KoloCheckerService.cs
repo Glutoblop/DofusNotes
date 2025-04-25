@@ -127,6 +127,7 @@ namespace DofusNotes.PatchNotes
                 await googleSheet.PushDataToSheetAsync(ladder);
             }
 
+            _ForceUpdate = false;
             _IsProcessing = false;
         }
 
