@@ -1,14 +1,28 @@
 ﻿namespace DofusNotes.Data
 {
+    public class KolossiumLadder
+    {
+        public enum EKolossiumPlaylist
+        {
+            Ones,
+            Twos,
+            Threes
+        }
+
+        public static string GetPlaylistParam(EKolossiumPlaylist playlist)
+        {
+            if(playlist == EKolossiumPlaylist.Ones) return "1V1";
+            if(playlist == EKolossiumPlaylist.Twos) return "2V2";
+            return "3V3";
+        }
+
+        public EKolossiumPlaylist LadderType;
+        public string GetPlaylistParam() => GetPlaylistParam(LadderType);
+        public List<KolossiumRanking> Rankings;
+    }
+
     public class KolossiumRanking
     {
-        public static string[] KolossiumPlaylists = new[]
-        {
-            "1V1",
-            "2V2",
-            "3v3"
-        };
-
         public int Rank { get; set; }
         public string Name { get; set; }
         public string Class { get; set; }

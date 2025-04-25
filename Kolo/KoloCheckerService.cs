@@ -90,17 +90,18 @@ namespace DofusNotes.PatchNotes
             if (_IsProcessing) return;
             _IsProcessing = true;
 
-            List<List<KolossiumRanking>> playlistRankings = new();
+            List<KolossiumLadder> ladders = new();
 
-            for (int i = 0; i < KolossiumRanking.KolossiumPlaylists.Length; i++)
+            var playLists = Enum.GetValues(typeof(KolossiumLadder.EKolossiumPlaylist)).OfType<KolossiumLadder.EKolossiumPlaylist>().ToList();
+            foreach (KolossiumLadder.EKolossiumPlaylist playlist in playLists)
             {
                 string url = "https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={0}";
-                url = string.Format(url, KolossiumRanking.KolossiumPlaylists[i]);
-                List<KolossiumRanking> rankings = await GetKolossiumRankingsAsync(url);
-                playlistRankings.Add(rankings);
+                url = string.Format(url, KolossiumLadder.GetPlaylistParam(playlist));
+                var ladder = await GetKolossiumLadderAsync(playlist, url);
+                ladders.Add(ladder);
             }
 
-            await UpdateChannels(KolossiumRanking.KolossiumPlaylists, playlistRankings);
+            await UpdateLadderChannels(ladders);
 
             _IsProcessing = false;
         }
@@ -128,11 +129,18 @@ namespace DofusNotes.PatchNotes
             await db.PutAsync($"PollingDelay", timestamp);
         }
 
-        public async Task<List<KolossiumRanking>> GetKolossiumRankingsAsync(string url)
+        public async Task<KolossiumLadder> GetKolossiumLadderAsync(KolossiumLadder.EKolossiumPlaylist playlist, string url)
         {
+            var db = _Services.GetRequiredService<IDatabase>();
+            var nowDateOnly = DateOnly.FromDateTime(DateTime.UtcNow).ToString();
+
             await AwaitPollingDelay();
 
-            var rankings = new List<KolossiumRanking>();
+            var ladder = new KolossiumLadder()
+            {
+                LadderType = playlist,
+                Rankings = new()
+            };
 
             try
             {
@@ -156,7 +164,7 @@ namespace DofusNotes.PatchNotes
 
                     if (rows == null)
                     {
-                        return rankings;
+                        return ladder;
                     }
 
                     foreach (var row in rows)
@@ -201,10 +209,8 @@ namespace DofusNotes.PatchNotes
                             Rating = int.Parse(cells[5].InnerText.Trim()),
                             Winrate = cells[6].InnerText.Trim()
                         };
-                        rankings.Add(ranking);
+                        ladder.Rankings.Add(ranking);
                     }
-
-                    return rankings;
                 }
             }
             catch (Exception e)
@@ -212,10 +218,10 @@ namespace DofusNotes.PatchNotes
                 Console.WriteLine($"Parsing Error for Kolo {url}: {e.Message}");
             }
 
-            return rankings;
+            return ladder;
         }
 
-        public async Task UpdateChannels(string[] playlists, List<List<KolossiumRanking>> allRankiongs)
+        public async Task UpdateLadderChannels(List<KolossiumLadder> ladders)
         {
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
@@ -258,14 +264,14 @@ namespace DofusNotes.PatchNotes
                     // DELETE ALL OLD MESSAGES (Update maybe?)
                     await DeleteOldMessages(client, textChannel);
 
-                    for (int i = 0; i < allRankiongs.Count; i++)
+                    for (int i = 0; i < ladders.Count; i++)
                     {
                         var embedBuilder = new EmbedBuilder
                         {
-                            Title = $"{playlists[i]} Leader Board",
+                            Title = $"{ladders[i].GetPlaylistParam()} Leader Board",
                         };
 
-                        List<KolossiumRanking> ladder = allRankiongs[i];
+                        KolossiumLadder ladder = ladders[i];
                         string content = GenerateRankList(ladder);
                         embedBuilder.Description = content;
 
@@ -273,10 +279,10 @@ namespace DofusNotes.PatchNotes
                         double[] values = usageData.Select(s => s.Item2).ToArray();
                         string[] labels = usageData.Select(s => s.Item1).ToArray();
 
-                        var msg = await textChannel.SendMessageAsync($"# 🏆 {playlists[i]} Kolossium Leaderboard 🏆\n`{DateTime.UtcNow:yyyy/MM/dd}`",
+                        var msg = await textChannel.SendMessageAsync($"# 🏆 {ladder.GetPlaylistParam()} Kolossium Leaderboard 🏆\n`{DateTime.UtcNow:yyyy/MM/dd}`",
                         embed: embedBuilder.Build());
 
-                        await UpdateWithUsageChart(playlists, i, values, labels, msg);
+                        await UpdateWithUsageChart(ladder.GetPlaylistParam(), values, labels, msg);
                     }
                 }
                 catch (Exception ex)
@@ -286,7 +292,7 @@ namespace DofusNotes.PatchNotes
             }
         }
 
-        private static async Task UpdateWithUsageChart(string[] playlists, int i, double[] values, string[] labels, IUserMessage msg)
+        private static async Task UpdateWithUsageChart(string playlist, double[] values, string[] labels, IUserMessage msg)
         {
             // Create plot
             var plt = new ScottPlot.Plot();
@@ -313,7 +319,7 @@ namespace DofusNotes.PatchNotes
             plt.Axes.Frameless();
             plt.HideGrid();
             plt.FigureBackground.Color = Colors.Transparent;
-            plt.Title($"{playlists[i]} Top 100 Class Breakdown", size: 60);
+            plt.Title($"{playlist} Top 100 Class Breakdown", size: 60);
             plt.Axes.Color(Colors.White);
 
             plt.ShowLegend();
@@ -334,7 +340,7 @@ namespace DofusNotes.PatchNotes
             });
         }
 
-        private static List<Tuple<string, double>> GenerateClassUsageData(List<KolossiumRanking> ladder)
+        private static List<Tuple<string, double>> GenerateClassUsageData(KolossiumLadder ladder)
         {
             List<Tuple<string, double>> usageData =
             [
@@ -347,14 +353,14 @@ namespace DofusNotes.PatchNotes
             return usageData;
         }
 
-        private static string GenerateRankList(List<KolossiumRanking> ladder)
+        private static string GenerateRankList(KolossiumLadder ladder)
         {
             var content = "## Name | Class | Rating | Win Rate %\n";
-            for (int ladderIndex = 0; ladderIndex < ladder.Count; ladderIndex++)
+            for (int ladderIndex = 0; ladderIndex < ladder.Rankings.Count; ladderIndex++)
             {
                 if (ladderIndex == 50) break;
 
-                KolossiumRanking playerData = ladder[ladderIndex];
+                KolossiumRanking playerData = ladder.Rankings[ladderIndex];
 
                 string playerInfo = "* ";
                 if (ladderIndex == 0) playerInfo += "🥇 ";
@@ -362,7 +368,7 @@ namespace DofusNotes.PatchNotes
                 else if (ladderIndex == 2) playerInfo += "🥉 ";
                 else playerInfo += $"[{ladderIndex + 1}] ";
 
-                playerInfo += $"**{playerData.Name}** | {ladder[ladderIndex].Class} | {ladder[ladderIndex].Rating} | {ladder[ladderIndex].Winrate}";
+                playerInfo += $"**{playerData.Name}** | {playerData.Class} | {playerData.Rating} | {playerData.Winrate}";
 
                 if (ladderIndex != 0) content += "\n";
                 content += playerInfo;
@@ -391,11 +397,11 @@ namespace DofusNotes.PatchNotes
             } while (msgCount > 0);
         }
 
-        public static float GetPercentageOfClass(List<KolossiumRanking> rankings, string className)
+        public static float GetPercentageOfClass(KolossiumLadder ladder, string className)
         {
-            var total = rankings.Count;
+            var total = ladder.Rankings.Count;
             if (total == 0) return 0;
-            var matching = rankings.Count(s => s.Class == className);
+            var matching = ladder.Rankings.Count(s => s.Class == className);
             if (matching == 0)
             {
                 return 0;
