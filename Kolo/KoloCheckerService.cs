@@ -129,6 +129,8 @@ namespace DofusNotes.PatchNotes
 
             _ForceUpdate = false;
             _IsProcessing = false;
+
+            Console.WriteLine($"Completed!");
         }
 
         private async Task AwaitPollingDelay()
