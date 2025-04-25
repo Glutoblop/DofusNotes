@@ -5,7 +5,9 @@ using Discord;
 using Discord.WebSocket;
 using DofusNotes.Data;
 using HtmlAgilityPack;
+using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
+using ScottPlot;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -248,8 +250,6 @@ namespace DofusNotes.PatchNotes
                         }
                     } while (msgCount > 0);
 
-                    List<EmbedBuilder> rankingEmbeds = new();
-
                     for (int i = 0; i < koloData.Count; i++)
                     {
                         var embedBuilder = new EmbedBuilder
@@ -273,27 +273,96 @@ namespace DofusNotes.PatchNotes
 
                         embedBuilder.Description = content;
 
-                        List<Tuple<string, float>> usageData = new();
+                        List<Tuple<string, double>> usageData = new();
                         foreach (var className in CLASS_NAMES)
                         {
                             var percentage = GetPercentageOfClass(koloData[i], className);
                             if (percentage > 0)
                             {
-                                usageData.Add(new Tuple<string, float>(className, percentage));
+                                usageData.Add(new Tuple<string, double>(className, percentage));
                             }
                         }
-                        usageData = usageData.OrderBy(s => s.Item1).ToList();
+                        usageData = usageData.OrderBy(s => s.Item2).ToList();
 
-                        foreach (var usage in usageData)
+                        double[] values = usageData.Select(s => s.Item2).ToArray();
+                        string[] labels = usageData.Select(s => s.Item1).ToArray();
+
+                        var customColors = new List<ScottPlot.Color>
                         {
-                            embedBuilder.AddField($"{usage.Item1}", $"{usage.Item2}%", true);
+                            Colors.CornflowerBlue,
+                            Colors.MediumSeaGreen,
+                            Colors.Orange,
+                            Colors.IndianRed,
+                            Colors.MediumPurple,
+                            Colors.SkyBlue,
+                            Colors.LightCoral,
+                            Colors.DarkKhaki,
+                            Colors.Violet, Colors.Gray, Colors.DarkGreen, Colors.DarkOrange,
+                            Colors.Maroon, Colors.Olive, Colors.Pink, Colors.Turquoise,
+                            Colors.Red, Colors.Green, Colors.Blue, Colors.Gold,
+                            Colors.Orange, Colors.Purple, Colors.Teal, Colors.Brown,
+                            Colors.Cyan, Colors.Magenta, Colors.Navy, Colors.Lime,
+                        };
+
+                        // Create pie slices
+                        List<PieSlice> slices = new();
+                        for (int sliceIndex = 0; sliceIndex < values.Length; sliceIndex++)
+                        {
+                            slices.Add(new PieSlice()
+                            {
+                                Value = values[sliceIndex],
+                                Label = labels[sliceIndex],
+                                FillColor = customColors[sliceIndex % customColors.Count]
+                            });
                         }
 
-                        rankingEmbeds.Add(embedBuilder);
-                    }
+                        // Create plot
+                        var plt = new ScottPlot.Plot();
+                        var pie = plt.Add.Pie(slices);
 
-                    await textChannel.SendMessageAsync($"# Kolossium Leaderboards {DateTime.UtcNow:yyyy/MM/dd}",
-                        embeds: rankingEmbeds.Select(s => s.Build()).ToArray());
+                        // Style the pie
+                        pie.ExplodeFraction = 0.3;
+                        pie.SliceLabelDistance = 3.0;
+
+                        foreach (var slice in pie.Slices)
+                        {
+                            slice.LabelFontSize = 30;
+                            slice.LabelFontColor = Colors.White;
+                            slice.LabelBorderColor = Colors.Black;
+                            slice.LabelAlignment = Alignment.MiddleCenter;
+                            slice.Label = $"{slice.Label} ({slice.Value}%)";
+                        }
+
+                        // Make it clean and modern
+                        plt.Axes.Frameless();
+                        plt.HideGrid();
+                        plt.FigureBackground.Color = Colors.Transparent;
+                        plt.Title($"{playlists[i]} Class Usage", size: 60);
+                        plt.Axes.Color(Colors.White);
+
+                        plt.ShowLegend();
+                        plt.Legend.DisplayPlottableLegendItems = false;
+
+                        //------ EXPORT IMAGE
+                        var bytes = plt.GetImageBytes(1400, 900, ScottPlot.ImageFormat.Png);
+                        using MagickImage magickImage = new MagickImage(bytes);
+
+                        QuantizeSettings settings = new QuantizeSettings();
+                        settings.Colors = 256;
+                        magickImage.Quantize(settings);
+
+                        await using Stream pngStream = new MemoryStream();
+                        await magickImage.WriteAsync(pngStream);
+
+                        var msg = await textChannel.SendMessageAsync($"# {playlists[i]} Kolossium Leaderboard {DateTime.UtcNow:yyyy/MM/dd}",
+                        embed: embedBuilder.Build());
+
+                        await msg.ModifyAsync(properties =>
+                        {
+                            properties.Attachments = new Optional<IEnumerable<FileAttachment>>(new List<FileAttachment>()
+                        { new(pngStream, "piechart.png") });
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -301,7 +370,6 @@ namespace DofusNotes.PatchNotes
                 }
             }
         }
-
 
         public static float GetPercentageOfClass(List<KolossiumRanking> rankings, string className)
         {
