@@ -1,12 +1,12 @@
-﻿using Discord;
-using Discord.Interactions;
-using Discord.Rest;
-using Microsoft.Extensions.DependencyInjection;
-using ChangeLogTracker.Core.Interfaces;
+﻿using ChangeLogTracker.Core.Interfaces;
 using ChangeLogTracker.Data;
+using Discord;
+using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace ChangeLogTracker
+namespace DofusNotes.PatchNotes
 {
+    [RequireOwner]
     public class ChangeLogTrackerCommands : InteractionModuleBase<InteractionContext>
     {
         private IServiceProvider _Services;
@@ -16,6 +16,7 @@ namespace ChangeLogTracker
             _Services = services;
         }
 
+        [RequireOwner]
         [SlashCommand("set_changelog_role", "Set the role to notifiy when change logs are posted.", runMode: RunMode.Async)]
         public async Task SetChangelogRole(IRole role)
         {
@@ -27,7 +28,7 @@ namespace ChangeLogTracker
 
             var content = $"{role.Mention} will now be notified on change log notifications messages";
 
-            await db.PutAsync<NotifyRole>($"NotifyRole/{Context.Guild.Id}", notifyRole);
+            await db.PutAsync($"NotifyRole/{Context.Guild.Id}", notifyRole);
 
             await ModifyOriginalResponseAsync(properties =>
             {
@@ -35,6 +36,7 @@ namespace ChangeLogTracker
             });
         }
 
+        [RequireOwner]
         [SlashCommand("set_changelog_channel", "Channel to post notifications about change logs go.", runMode: RunMode.Async)]
         public async Task SetDofusServerHostedChannel(ITextChannel textChannel)
         {
@@ -46,7 +48,7 @@ namespace ChangeLogTracker
 
             var content = $"{textChannel.Mention} will now host the change log notifications messages";
 
-            await db.PutAsync<HostedChannel>($"HostedChannel/{Context.Guild.Id}", hostedChannel);
+            await db.PutAsync($"HostedChannel/{Context.Guild.Id}", hostedChannel);
 
             await ModifyOriginalResponseAsync(properties =>
             {

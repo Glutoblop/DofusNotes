@@ -6,7 +6,7 @@ using Discord.WebSocket;
 using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ChangeLogTracker
+namespace DofusNotes.PatchNotes
 {
     public class ChangeLogChecker
     {
@@ -76,12 +76,12 @@ namespace ChangeLogTracker
         private static string Base64Encode(string plainText)
         {
             var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-            return System.Convert.ToBase64String(plainTextBytes);
+            return Convert.ToBase64String(plainTextBytes);
         }
 
         private static string Base64Decode(string base64EncodedData)
         {
-            var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);
+            var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
             return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
         }
 
@@ -94,7 +94,7 @@ namespace ChangeLogTracker
             var web = new HtmlWeb();
             var doc = await web.LoadFromWebAsync(changeLogPage);
 
-            await db.PutAsync<TimeStamp>($"LastUpdated", new TimeStamp() { Date = DateTime.UtcNow });
+            await db.PutAsync($"LastUpdated", new TimeStamp() { Date = DateTime.UtcNow });
 
             List<ChangeLogData> changelogs = new();
 
@@ -208,16 +208,16 @@ namespace ChangeLogTracker
 
                     var channel = await ((IGuild)guild).GetChannelAsync(hostedChanel.ChannelId);
 
-                    if(channel == null)
+                    if (channel == null)
                     {
-                        await db.DeleteAsync($"HostedChannel/{guild.Id}"); 
+                        await db.DeleteAsync($"HostedChannel/{guild.Id}");
                         logger.Log($"Channel was null, removed HostedChannel from data.");
                         continue;
                     }
 
                     if (channel is not ITextChannel)
                     {
-                        logger.Log($"Channel {(channel?.Name ?? "[null]")} for {guild.Name} not a TextChannel");
+                        logger.Log($"Channel {channel?.Name ?? "[null]"} for {guild.Name} not a TextChannel");
                         continue;
                     }
                     txtChannel = (ITextChannel)channel;
@@ -243,7 +243,7 @@ namespace ChangeLogTracker
                 }
 
                 if (txtChannel == null) continue;
-                await db.PutAsync<ChangeLogData>($"LastChangeLog/{guild.Id}/{txtChannel.Id}", changeData);
+                await db.PutAsync($"LastChangeLog/{guild.Id}/{txtChannel.Id}", changeData);
             }
         }
     }

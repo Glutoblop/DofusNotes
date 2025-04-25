@@ -1,25 +1,26 @@
 ﻿using Discord.Interactions;
+using DofusNotes.PatchNotes;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ChangeLogTracker
+namespace DofusNotes.Kolo
 {
     [RequireOwner]
-    public class ChangeLogAdminCommands : InteractionModuleBase<InteractionContext>
+    public class KoloLadderAdminCommands : InteractionModuleBase<InteractionContext>
     {
         private IServiceProvider _Services;
 
-        public ChangeLogAdminCommands(IServiceProvider services)
+        public KoloLadderAdminCommands(IServiceProvider services)
         {
             _Services = services;
         }
 
         [RequireOwner]
-        [SlashCommand("trigger", "Trigger the bot to query the change log changes.", runMode: RunMode.Async)]
-        public async Task TriggerChangelogQuery()
+        [SlashCommand("kolo_trigger", "Triggers kolo leaderboard tick", runMode: RunMode.Async)]
+        public async Task TriggerKolo()
         {
             await DeferAsync(true);
 
-            await _Services.GetRequiredService<ChangeLogChecker>().TriggerNow();
+            await _Services.GetRequiredService<KoloCheckerService>().TriggerNow();
 
             await ModifyOriginalResponseAsync(properties =>
             {
