@@ -19,6 +19,12 @@
         public EKolossiumPlaylist LadderType;
         public string GetPlaylistParam() => GetPlaylistParam(LadderType);
         public List<KolossiumRanking> Rankings;
+
+        public static string GetDatabaseUrl(EKolossiumPlaylist playlist)
+        {
+            var nowDateOnly = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy_MM_dd");
+            return $"Ladder/{nowDateOnly}/{GetPlaylistParam(playlist)}";
+        }
     }
 
     public class KolossiumRanking

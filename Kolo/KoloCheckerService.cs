@@ -132,11 +132,15 @@ namespace DofusNotes.PatchNotes
         public async Task<KolossiumLadder> GetKolossiumLadderAsync(KolossiumLadder.EKolossiumPlaylist playlist, string url)
         {
             var db = _Services.GetRequiredService<IDatabase>();
-            var nowDateOnly = DateOnly.FromDateTime(DateTime.UtcNow).ToString();
+            var ladder = await db.GetAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist));
+            if (ladder != null)
+            {
+                return ladder;
+            }
 
             await AwaitPollingDelay();
 
-            var ladder = new KolossiumLadder()
+            ladder = new KolossiumLadder()
             {
                 LadderType = playlist,
                 Rankings = new()
@@ -212,6 +216,10 @@ namespace DofusNotes.PatchNotes
                         ladder.Rankings.Add(ranking);
                     }
                 }
+
+
+                await db.PutAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist), ladder);
+
             }
             catch (Exception e)
             {
