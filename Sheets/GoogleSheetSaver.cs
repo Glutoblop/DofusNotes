@@ -31,10 +31,12 @@ namespace DofusNotes.Sheets
             });
         }
 
-        public async Task PushDataToSheetAsync(KolossiumLadder ladder)
+        public async Task PushDataToSheetAsync(List<KolossiumLadder> ladders)
         {
-            var dateStr = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy_MM_dd");
-            var sheetName = $"{ladder.GetPlaylistParam()} {dateStr}";
+            var dateStr = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy/MM/dd");
+            var sheetName = $"{dateStr}";
+
+            List<KolossiumRanking> combinedRankings = ladders.SelectMany(s => s.Rankings).ToList();
 
             var spreadsheet = _Sheets.Spreadsheets.Get(_SpreadSheetId).Execute();
             bool sheetExists = spreadsheet.Sheets.Any(s => s.Properties.Title == sheetName);
@@ -66,21 +68,23 @@ namespace DofusNotes.Sheets
             {
                 Values = new List<IList<object>>
                 {
-                    new List<object> { "Place", "Name", "Class", "Rating", "Win Rate %", "Server" },
+                    new List<object> { "Name", "Class", "Global Rating", "Class Rating", "Win Rate %", "Server", "Playlist", "Date" },
                 }
             };
 
-            for (int i = 0; i < ladder.Rankings.Count; i++)
+            for (int i = 0; i < combinedRankings.Count; i++)
             {
-                KolossiumRanking? ranking = ladder.Rankings[i];
+                KolossiumRanking? ranking = combinedRankings[i];
                 valueRange.Values.Add(new List<object>()
                 {
-                    ranking.Rank,
-                    ranking.Name, 
-                    ranking.Class, 
-                    ranking.Rating,
+                    ranking.Name,
+                    ranking.Class,
+                    ranking.GlobalRank,
+                    ranking.ClassRank,
                     ranking.Winrate,
                     ranking.Server,
+                    ranking.Playlist,
+                    ranking.DayStamp.ToString("yyyy/MM/dd")
                 });
             }
 

@@ -98,7 +98,8 @@ namespace DofusNotes.PatchNotes
 
             var db = _Services.GetRequiredService<IDatabase>();
 
-            List<KolossiumLadder> ladders = new();
+            List<KolossiumLadder> combinedLadders = new();
+            List<KolossiumLadder> globalLadders = new();
 
             var playLists = Enum.GetValues(typeof(KolossiumLadder.EKolossiumPlaylist)).OfType<KolossiumLadder.EKolossiumPlaylist>().ToList();
             foreach (KolossiumLadder.EKolossiumPlaylist playlist in playLists)
@@ -112,20 +113,51 @@ namespace DofusNotes.PatchNotes
                 }
 #endif
 
-                string url = "https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={0}";
-                url = string.Format(url, KolossiumLadder.GetPlaylistParam(playlist));
-                var ladder = await GetKolossiumLadderAsync(playlist, url);
-                ladders.Add(ladder);
+                //Get the generic top 100
+                KolossiumLadder globalLadder = await GetKolossiumLadderAsync(playlist, -1);
+                globalLadders.Add(globalLadder);
+
+                List<KolossiumRanking> combinedRankings = new();
+                foreach (var globalRank in globalLadder.Rankings)
+                {
+                    globalRank.GlobalRank = globalRank.Rank;
+                    combinedRankings.Add(globalRank);
+                }
+
+                //Get the top 100 for each class
+                for (int i = 1; i <= 20; i++)
+                {
+                    KolossiumLadder classLadder = await GetKolossiumLadderAsync(playlist, i);
+
+                    foreach (var classRank in classLadder.Rankings)
+                    {
+                        var combinedIndex = combinedRankings.FindIndex(s => s.Name == classRank.Name);
+                        if (combinedIndex != -1)
+                        {
+                            combinedRankings[combinedIndex].ClassRank = classRank.Rank;
+                        }
+                        else
+                        {
+                            classRank.ClassRank = classRank.Rank;
+                            combinedRankings.Add(classRank);
+                        }
+                    };
+                }
+
+                combinedLadders.Add(new KolossiumLadder()
+                {
+                    LadderType = playlist,
+                    Rankings = combinedRankings
+                });
             }
-            await UpdateLadderChannels(ladders);
+
+            //Update the Discord charts using the global ladders (only for now)
+            await UpdateLadderChannels(globalLadders);
 
 
             Console.WriteLine($"Pushing data to Sheets..");
             var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
-            foreach (var ladder in ladders)
-            {
-                await googleSheet.PushDataToSheetAsync(ladder);
-            }
+            await googleSheet.PushDataToSheetAsync(combinedLadders);
 
             _ForceUpdate = false;
             _IsProcessing = false;
@@ -133,39 +165,26 @@ namespace DofusNotes.PatchNotes
             Console.WriteLine($"Completed!");
         }
 
-        private async Task AwaitPollingDelay()
+        public async Task<KolossiumLadder> GetKolossiumLadderAsync(KolossiumLadder.EKolossiumPlaylist playlist, int breed)
         {
+            string playlistType = KolossiumLadder.GetPlaylistParam(playlist);
+            var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={playlistType}&breeds={breed}";
+
+            Console.WriteLine($"Requesting {playlistType} filtered by {breed}");
+
             var db = _Services.GetRequiredService<IDatabase>();
-            var timestamp = await db.GetAsync<TimeStamp>($"PollingDelay");
-            if (timestamp == null)
-            {
-                timestamp = new()
-                {
-                    Date = DateTime.UtcNow
-                };
-                await db.PutAsync($"PollingDelay", timestamp);
-            }
 
-            var dif = DateTime.UtcNow - timestamp.Date;
-            if (dif.TotalSeconds < 1.8f && dif.TotalSeconds > 0)
-            {
-                await Task.Delay(dif);
-            }
-
-            timestamp.Date = DateTime.UtcNow;
-            await db.PutAsync($"PollingDelay", timestamp);
-        }
-
-        public async Task<KolossiumLadder> GetKolossiumLadderAsync(KolossiumLadder.EKolossiumPlaylist playlist, string url)
-        {
-            var db = _Services.GetRequiredService<IDatabase>();
-            var ladder = await db.GetAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist));
+            KolossiumLadder ladder = null;
+            ladder = await db.GetAsync<KolossiumLadder>($"{playlistType}/{breed}");
             if (ladder != null)
             {
+#if !DEBUG
                 return ladder;
+#endif
             }
 
-            await AwaitPollingDelay();
+            //Just wait an amount of time to make sure not to hit any lockouts from the website.
+            await Task.Delay(2340);
 
             ladder = new KolossiumLadder()
             {
@@ -238,7 +257,10 @@ namespace DofusNotes.PatchNotes
                             Server = cells[3].InnerText.Trim(),
                             Level = level,
                             Rating = int.Parse(cells[5].InnerText.Trim()),
-                            Winrate = cells[6].InnerText.Trim()
+                            Winrate = cells[6].InnerText.Trim(),
+
+                            DayStamp = DateOnly.FromDateTime(DateTime.UtcNow),
+                            Playlist = playlistType
                         };
                         ladder.Rankings.Add(ranking);
                     }

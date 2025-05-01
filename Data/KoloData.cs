@@ -11,8 +11,8 @@
 
         public static string GetPlaylistParam(EKolossiumPlaylist playlist)
         {
-            if(playlist == EKolossiumPlaylist.Ones) return "1V1";
-            if(playlist == EKolossiumPlaylist.Twos) return "2V2";
+            if (playlist == EKolossiumPlaylist.Ones) return "1V1";
+            if (playlist == EKolossiumPlaylist.Twos) return "2V2";
             return "3V3";
         }
 
@@ -29,13 +29,20 @@
 
     public class KolossiumRanking
     {
-        public int Rank { get; set; }
+        public int Rank { get; set; } = 0;
+
+        public int GlobalRank { get; set; } = 0;
+        public int ClassRank { get; set; } = 0;
+
+
         public string Name { get; set; }
         public string Class { get; set; }
         public string Server { get; set; }
         public int Level { get; set; }
         public int Rating { get; set; }
         public string Winrate { get; set; }
+        public DateOnly DayStamp { get; internal set; }
+        public string Playlist { get; internal set; }
     }
 
 }
