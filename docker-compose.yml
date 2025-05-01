@@ -1,4 +1,4 @@
-name: changelogtracker
+name: dofusnotes
 
 services:
   changelogtracker:
