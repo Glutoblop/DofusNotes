@@ -1,7 +1,7 @@
 name: dofusnotes
 
 services:
-  changelogtracker:
+  dofusnotes:
     restart: always
     build: .
     volumes:

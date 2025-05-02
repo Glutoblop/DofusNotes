@@ -20,10 +20,10 @@
         public string GetPlaylistParam() => GetPlaylistParam(LadderType);
         public List<KolossiumRanking> Rankings;
 
-        public static string GetDatabaseUrl(EKolossiumPlaylist playlist)
+        public static string GetDatabaseUrl(EKolossiumPlaylist playlist, int breed = -1)
         {
             var nowDateOnly = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy_MM_dd");
-            return $"Ladder/{nowDateOnly}/{GetPlaylistParam(playlist)}";
+            return $"Ladder/{nowDateOnly}/{GetPlaylistParam(playlist)}/{breed}";
         }
     }
 

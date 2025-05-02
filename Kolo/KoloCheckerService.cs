@@ -170,12 +170,14 @@ namespace DofusNotes.PatchNotes
             string playlistType = KolossiumLadder.GetPlaylistParam(playlist);
             var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={playlistType}&breeds={breed}";
 
+            var dbPath = KolossiumLadder.GetDatabaseUrl(playlist, breed);
+
             Console.WriteLine($"Requesting {playlistType} filtered by {breed}");
 
             var db = _Services.GetRequiredService<IDatabase>();
 
             KolossiumLadder ladder = null;
-            ladder = await db.GetAsync<KolossiumLadder>($"{playlistType}/{breed}");
+            ladder = await db.GetAsync<KolossiumLadder>(dbPath);
             if (ladder != null)
             {
 #if !DEBUG
@@ -267,7 +269,7 @@ namespace DofusNotes.PatchNotes
                 }
 
 
-                await db.PutAsync<KolossiumLadder>($"{playlistType}/{breed}", ladder);
+                await db.PutAsync<KolossiumLadder>(dbPath, ladder);
 
             }
             catch (Exception e)
