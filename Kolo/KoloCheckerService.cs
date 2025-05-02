@@ -267,7 +267,7 @@ namespace DofusNotes.PatchNotes
                 }
 
 
-                await db.PutAsync<KolossiumLadder>(KolossiumLadder.GetDatabaseUrl(playlist), ladder);
+                await db.PutAsync<KolossiumLadder>($"{playlistType}/{breed}", ladder);
 
             }
             catch (Exception e)
