@@ -70,7 +70,7 @@ namespace ChangeLogTracker.Database
 
                 Directory.CreateDirectory(baseDirectoryPath);
 
-                foreach (var filePath in Directory.EnumerateFileSystemEntries(baseDirectoryPath))
+                foreach (var filePath in Directory.EnumerateFiles(baseDirectoryPath, "*", SearchOption.AllDirectories))
                 {
                     var json = await File.ReadAllTextAsync(filePath);
                     var offlineObj = JsonConvert.DeserializeObject<OfflineObject>(json);

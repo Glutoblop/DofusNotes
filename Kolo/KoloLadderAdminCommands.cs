@@ -27,5 +27,19 @@ namespace DofusNotes.Kolo
                 properties.Content = "Triggered";
             });
         }
+
+        [RequireOwner]
+        [SlashCommand("kolo_push", "Triggers all kolo data to be pushed to google sheets.", runMode: RunMode.Async)]
+        public async Task PushKolo()
+        {
+            await DeferAsync(true);
+
+            await _Services.GetRequiredService<KoloCheckerService>().PushAllDataToSheets();
+
+            await ModifyOriginalResponseAsync(properties =>
+            {
+                properties.Content = "Pushed";
+            });
+        }
     }
 }

@@ -31,9 +31,9 @@ namespace DofusNotes.Sheets
             });
         }
 
-        public async Task PushDataToSheetAsync(List<KolossiumLadder> ladders)
+        public async Task PushDataToSheetAsync(DateOnly dateOnly, List<KolossiumLadder> ladders)
         {
-            var dateStr = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy/MM/dd");
+            var dateStr = dateOnly.ToString("yyyy/MM/dd");
             var sheetName = $"{dateStr}";
 
             List<KolossiumRanking> combinedRankings = ladders.SelectMany(s => s.Rankings).ToList();
@@ -60,7 +60,7 @@ namespace DofusNotes.Sheets
                 _Sheets.Spreadsheets.BatchUpdate(batchUpdateRequest, _SpreadSheetId).Execute();
             }
 
-            await _Sheets.Spreadsheets.Values.Clear(new ClearValuesRequest(), _SpreadSheetId, $"{sheetName}!A1:E100").ExecuteAsync();
+            await _Sheets.Spreadsheets.Values.Clear(new ClearValuesRequest(), _SpreadSheetId, $"{sheetName}!A1:X100").ExecuteAsync();
 
             // Prepare data to push
             var range = $"{sheetName}!A1"; // top-left cell
@@ -68,7 +68,7 @@ namespace DofusNotes.Sheets
             {
                 Values = new List<IList<object>>
                 {
-                    new List<object> { "Name", "Class", "Global Rating", "Class Rating", "Win Rate %", "Server", "Playlist", "Date" },
+                    new List<object> { "Name", "Class", "Global Rating", "Class Rating", "Win Rate %", "Server", "Playlist", "Rating", "Date" },
                 }
             };
 
@@ -84,6 +84,7 @@ namespace DofusNotes.Sheets
                     ranking.Winrate,
                     ranking.Server,
                     ranking.Playlist,
+                    ranking.Rating,
                     ranking.DayStamp.ToString("yyyy/MM/dd")
                 });
             }

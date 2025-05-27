@@ -9,6 +9,7 @@ using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
+using ScottPlot.Colormaps;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -157,7 +158,7 @@ namespace DofusNotes.PatchNotes
 
             Console.WriteLine($"Pushing data to Sheets..");
             var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
-            await googleSheet.PushDataToSheetAsync(combinedLadders);
+            await googleSheet.PushDataToSheetAsync(DateOnly.FromDateTime(DateTime.UtcNow), combinedLadders);
 
             _ForceUpdate = false;
             _IsProcessing = false;
@@ -483,5 +484,42 @@ namespace DofusNotes.PatchNotes
             return (float)((float)total / (float)total * (float)matching);
         }
 
+        internal async Task PushAllDataToSheets()
+        {
+            var db = _Services.GetRequiredService<IDatabase>();
+
+            Dictionary<string, List<KolossiumLadder>> ladderData = new();
+
+            await db.GetAllAsync<KolossiumLadder>("Ladder", (path, data) =>
+            {
+                string[] pathParts = path.Split('/');
+                string date = pathParts[1];
+                if (!ladderData.ContainsKey(date)) ladderData.Add(date, new());
+
+                ladderData[date].Add(data);
+                return false;
+            });
+
+            var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
+
+            //TODO - Recalculate the Global Rank / Class Rank for the data
+
+            foreach(var ladder in ladderData)
+            {
+                DateOnly dayStamp = DateOnly.ParseExact(ladder.Key, "yyyy_MM_dd");
+
+                List<KolossiumLadder> lad = ladder.Value;
+                for (int i = 0; i < lad.Count; i++)
+                {
+                    for(int j = 0; j < lad[i].Rankings.Count; j++)
+                    {
+                        lad[i].Rankings[j].DayStamp = dayStamp;
+                    }
+                }
+                
+                //await googleSheet.PushDataToSheetAsync(dayStamp, lad);
+            }
+
+        }
     }
 }
