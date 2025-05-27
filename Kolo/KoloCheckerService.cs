@@ -9,7 +9,6 @@ using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
-using ScottPlot.Colormaps;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -488,15 +487,48 @@ namespace DofusNotes.PatchNotes
         {
             var db = _Services.GetRequiredService<IDatabase>();
 
-            Dictionary<string, List<KolossiumLadder>> ladderData = new();
+            //[Date][Mode]
+            Dictionary<string, Dictionary<string, List<KolossiumLadder>>> globalData = new();
+            Dictionary<string, Dictionary<string, List<KolossiumLadder>>> classData = new();
 
             await db.GetAllAsync<KolossiumLadder>("Ladder", (path, data) =>
             {
                 string[] pathParts = path.Split('/');
                 string date = pathParts[1];
-                if (!ladderData.ContainsKey(date)) ladderData.Add(date, new());
+                string mode = pathParts[2];
 
-                ladderData[date].Add(data);
+                DateOnly dayStamp = DateOnly.ParseExact(date, "yyyy_MM_dd");
+
+                if (path.EndsWith("-1"))
+                {
+                    if (!globalData.ContainsKey(date)) globalData.Add(date, new());
+                    if (!globalData[date].ContainsKey(mode)) globalData[date].Add(mode, new());                    
+
+                    for (int i = 0; i < data.Rankings.Count; i++)
+                    {
+                        for (int j = 0; j < data.Rankings.Count; j++)
+                        {
+                            data.Rankings[j].DayStamp = dayStamp;
+                        }
+                    }
+
+                    globalData[date][mode].Add(data);
+                }
+                else
+                {
+                    if (!classData.ContainsKey(date)) classData.Add(date, new());
+                    if (!classData[date].ContainsKey(mode)) classData[date].Add(mode, new());
+
+                    for (int i = 0; i < data.Rankings.Count; i++)
+                    {
+                        for (int j = 0; j < data.Rankings.Count; j++)
+                        {
+                            data.Rankings[j].DayStamp = dayStamp;
+                        }
+                    }
+
+                    classData[date][mode].Add(data);
+                }
                 return false;
             });
 
@@ -504,21 +536,30 @@ namespace DofusNotes.PatchNotes
 
             //TODO - Recalculate the Global Rank / Class Rank for the data
 
-            foreach(var ladder in ladderData)
-            {
-                DateOnly dayStamp = DateOnly.ParseExact(ladder.Key, "yyyy_MM_dd");
 
-                List<KolossiumLadder> lad = ladder.Value;
-                for (int i = 0; i < lad.Count; i++)
+            foreach (var dateData in classData)
+            {
+                List<KolossiumLadder> daycombinedLadder = new();
+
+                var date = dateData.Key;
+
+                DateOnly dayStamp = DateOnly.ParseExact(date, "yyyy_MM_dd");
+
+                List<KolossiumLadder> combinedLadders = new();
+                List<KolossiumLadder> globalLadders = new();
+
+                foreach (var modeData in dateData.Value)
                 {
-                    for(int j = 0; j < lad[i].Rankings.Count; j++)
-                    {
-                        lad[i].Rankings[j].DayStamp = dayStamp;
-                    }
+                    string mode = modeData.Key;
+                    List<KolossiumLadder> modeLadder = modeData.Value;
+
                 }
-                
-                //await googleSheet.PushDataToSheetAsync(dayStamp, lad);
             }
+
+            //foreach(var ladder in allData)
+            //{
+            //    //await googleSheet.PushDataToSheetAsync(dayStamp, lad);
+            //}
 
         }
     }
