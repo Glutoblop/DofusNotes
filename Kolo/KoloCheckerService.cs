@@ -142,10 +142,13 @@ namespace DofusNotes.PatchNotes
                 //Get the top 100 for each class
                 for (int i = 1; i <= 20; i++)
                 {
+                    //Class 19 is used as the common spells class so no kolo leaderboard
+                    if (i == 19) continue;
+
                     KolossiumLadder classLadder = await GetKolossiumLadderAsync(dateTime, playlist, i, useCache);
                     if (classLadder == null)
                     {
-                        return null;
+                        continue;
                     }
 
                     foreach (var classRank in classLadder.Rankings)
