@@ -1,4 +1,6 @@
-﻿namespace DofusNotes.Data
+﻿using Newtonsoft.Json;
+
+namespace DofusNotes.Data
 {
     public class KolossiumLadder
     {
@@ -20,10 +22,20 @@
         public string GetPlaylistParam() => GetPlaylistParam(LadderType);
         public List<KolossiumRanking> Rankings;
 
-        public static string GetDatabaseUrl(EKolossiumPlaylist playlist, int breed = -1)
+        public static string GetDatabaseUrl(DateOnly dateTime, EKolossiumPlaylist playlist, int breed = -1)
         {
-            var nowDateOnly = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy_MM_dd");
+            var nowDateOnly = dateTime.ToString("yyyy_MM_dd");
             return $"Ladder/{nowDateOnly}/{GetPlaylistParam(playlist)}/{breed}";
+        }
+
+        public static EKolossiumPlaylist ToKoloPlaylist(string key)
+        {
+            switch (key.ToLowerInvariant())
+            {
+                case "1v1": return EKolossiumPlaylist.Ones;
+                case "2v2": return EKolossiumPlaylist.Twos;
+            }
+            return EKolossiumPlaylist.Threes;
         }
     }
 
@@ -41,8 +53,10 @@
         public int Level { get; set; }
         public int Rating { get; set; }
         public string Winrate { get; set; }
-        public DateOnly DayStamp { get; internal set; }
-        public string Playlist { get; internal set; }
+
+        [JsonConverter(typeof(DateOnlyJsonConverter))]
+        public DateOnly DayStamp { get; set; }
+        public string Playlist { get; set; }
     }
 
 }
