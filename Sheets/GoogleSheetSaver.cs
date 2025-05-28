@@ -68,7 +68,7 @@ namespace DofusNotes.Sheets
             {
                 Values = new List<IList<object>>
                 {
-                    new List<object> { "Name", "Class", "Global Rating", "Class Rating", "Win Rate %", "Server", "Playlist", "Rating", "Date" },
+                    new List<object> { "Name", "Class", "Global Rating", "Class Rating", "Win Rate %", "Server", "Playlist", "Rating", "Level", "Date" },
                 }
             };
 
@@ -85,6 +85,7 @@ namespace DofusNotes.Sheets
                     ranking.Server,
                     ranking.Playlist,
                     ranking.Rating,
+                    ranking.Level,
                     ranking.DayStamp.ToString("yyyy/MM/dd")
                 });
             }

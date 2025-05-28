@@ -499,7 +499,7 @@ namespace DofusNotes.PatchNotes
             return (float)((float)total / (float)total * (float)matching);
         }
 
-        public async Task PushAllDataToSheets()
+        public async Task PushAllDataToSheets(Action<string> onMsg = null)
         {
             var db = _Services.GetRequiredService<IDatabase>();
 
@@ -510,7 +510,7 @@ namespace DofusNotes.PatchNotes
                 string[] pathParts = path.Split('/');
                 string date = pathParts[1];
                 string mode = pathParts[2];
-
+            
                 DateOnly dayStamp = DateOnly.ParseExact(date, "yyyy_MM_dd");
                 if (earliestTime == null)
                 {
@@ -520,22 +520,22 @@ namespace DofusNotes.PatchNotes
                 {
                     earliestTime = dayStamp;
                 }
-
+            
                 return false;
             });
 
             DateOnly dateTime = earliestTime.Value;
             DateOnly nowDate = DateOnly.FromDateTime(DateTime.Now);
 
-            while (dateTime < nowDate)
+            while (dateTime <= nowDate)
             {
-                Console.WriteLine($"");
-
                 var allLadders = await GetKoloLaddersFromDate(dateTime);
                 List<KolossiumLadder> combinedLadders = allLadders[1];
 
                 var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
                 await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders);
+
+                onMsg?.Invoke($"Updated {dateTime}");
 
                 dateTime = dateTime.AddDays(1);
             }

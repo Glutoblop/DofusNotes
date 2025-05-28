@@ -34,7 +34,13 @@ namespace DofusNotes.Kolo
         {
             await DeferAsync(true);
 
-            await _Services.GetRequiredService<KoloCheckerService>().PushAllDataToSheets();
+            await _Services.GetRequiredService<KoloCheckerService>().PushAllDataToSheets(async s =>
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = s;
+                });
+            });
 
             await ModifyOriginalResponseAsync(properties =>
             {
