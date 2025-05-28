@@ -153,7 +153,8 @@ namespace DofusNotes.PatchNotes
 
                     foreach (var classRank in classLadder.Rankings)
                     {
-                        var combinedIndex = combinedRankings.FindIndex(s => s.Name == classRank.Name);
+                        //Only merge the data if the character name AND server are the same
+                        var combinedIndex = combinedRankings.FindIndex(s => s.Name == classRank.Name && s.Server == classRank.Server);
                         if (combinedIndex != -1)
                         {
                             combinedRankings[combinedIndex].ClassRank = classRank.Rank;
