@@ -1,8 +1,10 @@
-﻿using DofusNotes.Data;
+﻿using ChangeLogTracker.Core.Interfaces;
+using DofusNotes.Data;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 
 namespace DofusNotes.Sheets
@@ -35,6 +37,17 @@ namespace DofusNotes.Sheets
         {
             var dateStr = dateOnly.ToString("yyyy/MM/dd");
             var sheetName = $"{dateStr}";
+
+            var db = _Services.GetRequiredService<IDatabase>();
+
+            var pushedKey = dateOnly.ToString("yyyy_MM_dd");
+            var pushedSheet = await db.GetAsync<PushedStamp>($"Pushed/Sheet/{pushedKey}");
+            if (pushedSheet != null)
+            {
+                Console.WriteLine($"Already pushed the sheet");
+                return;
+            }
+            await db.PutAsync<PushedStamp>($"Pushed/Sheet/{pushedKey}", new() { Pushed = dateOnly });
 
             List<KolossiumRanking> combinedRankings = ladders.SelectMany(s => s.Rankings).ToList();
 

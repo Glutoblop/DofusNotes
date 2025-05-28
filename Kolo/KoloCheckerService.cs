@@ -9,6 +9,7 @@ using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
+using System;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -102,7 +103,7 @@ namespace DofusNotes.PatchNotes
                 List<KolossiumLadder> combinedLadders = allLadders[1];
 
                 //Update the Discord charts using the global ladders (only for now)
-                await UpdateLadderChannels(dateTime, globalLadders);
+                await UpdateLadderChannelsGraphs(dateTime, globalLadders);
 
                 Console.WriteLine($"Pushing data to Sheets..");
                 var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
@@ -177,25 +178,24 @@ namespace DofusNotes.PatchNotes
             return [globalLadders, combinedLadders];
         }
 
-        public async Task<KolossiumLadder> GetKolossiumLadderAsync(DateOnly dateTime, KolossiumLadder.EKolossiumPlaylist playlist, int breed, bool useCache = true)
+        public async Task<KolossiumLadder> GetKolossiumLadderAsync(DateOnly dateOnly, KolossiumLadder.EKolossiumPlaylist playlist, int breed, bool useCache = true)
         {
             string playlistType = KolossiumLadder.GetPlaylistParam(playlist);
             var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={playlistType}&breeds={breed}";
 
-            var dbPath = KolossiumLadder.GetDatabaseUrl(dateTime, playlist, breed);
+            var dbPath = KolossiumLadder.GetDatabaseUrl(dateOnly, playlist, breed);
 
             Console.WriteLine($"Requesting {playlistType} filtered by {breed}");
 
             var db = _Services.GetRequiredService<IDatabase>();
 
-            KolossiumLadder ladder = null;
-            ladder = await db.GetAsync<KolossiumLadder>(dbPath);
+            KolossiumLadder ladder = await db.GetAsync<KolossiumLadder>(dbPath);
             if (ladder != null && useCache)
             {
                 return ladder;
             }
 
-            if (DateOnly.FromDateTime(DateTime.UtcNow) != dateTime)
+            if (DateOnly.FromDateTime(DateTime.UtcNow) != dateOnly)
             {
                 Console.WriteLine($"You can only fetch the data from none-cache if its todays data.");
                 return null;
@@ -277,7 +277,7 @@ namespace DofusNotes.PatchNotes
                             Rating = int.Parse(cells[5].InnerText.Trim()),
                             Winrate = cells[6].InnerText.Trim(),
 
-                            DayStamp = dateTime,
+                            DayStamp = dateOnly,
                             Playlist = playlistType
                         };
                         ladder.Rankings.Add(ranking);
@@ -295,13 +295,22 @@ namespace DofusNotes.PatchNotes
             return ladder;
         }
 
-        public async Task UpdateLadderChannels(DateOnly dateTime, List<KolossiumLadder> ladders)
+        public async Task UpdateLadderChannelsGraphs(DateOnly dateOnly, List<KolossiumLadder> ladders)
         {
             Console.WriteLine($"Updating Channels with Ladder Data...");
 
             var client = _Services.GetRequiredService<DiscordSocketClient>();
             var db = _Services.GetRequiredService<IDatabase>();
             var logger = _Services.GetRequiredService<ILogger>();
+
+            var pushedKey = dateOnly.ToString("yyyy_MM_dd");
+            var pushedGraphs = await db.GetAsync<PushedStamp>($"Pushed/Graphs/{pushedKey}");
+            if(pushedGraphs != null )
+            {
+                Console.WriteLine($"Already pushed the graphs");
+                return;
+            }
+            await db.PutAsync<PushedStamp>($"Pushed/Graphs/{pushedKey}", new() { Pushed = dateOnly });
 
             foreach (var guild in client.Guilds)
             {
@@ -357,7 +366,7 @@ namespace DofusNotes.PatchNotes
                         double[] values = usageData.Select(s => s.Item2).ToArray();
                         string[] labels = usageData.Select(s => s.Item1).ToArray();
 
-                        var msg = await textChannel.SendMessageAsync($"# 🏆 {ladder.GetPlaylistParam()} Kolossium Leaderboard 🏆\n`{dateTime:yyyy/MM/dd}`",
+                        var msg = await textChannel.SendMessageAsync($"# 🏆 {ladder.GetPlaylistParam()} Kolossium Leaderboard 🏆\n`{dateOnly:yyyy/MM/dd}`",
                         embed: embedBuilder.Build());
 
                         await UpdateWithUsageChart(ladder.GetPlaylistParam(), values, labels, msg);
