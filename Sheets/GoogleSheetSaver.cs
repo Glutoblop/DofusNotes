@@ -44,8 +44,10 @@ namespace DofusNotes.Sheets
             var pushedSheet = await db.GetAsync<PushedStamp>($"Pushed/Sheet/{pushedKey}");
             if (pushedSheet != null)
             {
+#if !DEBUG
                 Console.WriteLine($"Already pushed the sheet");
                 return;
+#endif
             }
             await db.PutAsync<PushedStamp>($"Pushed/Sheet/{pushedKey}", new() { Pushed = dateOnly });
 
@@ -107,6 +109,43 @@ namespace DofusNotes.Sheets
             var updateRequest = _Sheets.Spreadsheets.Values.Update(valueRange, _SpreadSheetId, range);
             updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
             await updateRequest.ExecuteAsync();
+
+            spreadsheet = _Sheets.Spreadsheets.Get(_SpreadSheetId).Execute();
+            var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+            int sheetId = (int)sheet.Properties.SheetId;
+
+            var formatRequest = new Request
+            {
+                RepeatCell = new RepeatCellRequest
+                {
+                    Range = new GridRange
+                    {
+                        SheetId = sheetId,
+                        StartRowIndex = 1,
+                        StartColumnIndex = 4,  
+                        EndColumnIndex = 5                                               
+                    },
+                    Cell = new CellData
+                    {
+                        UserEnteredFormat = new CellFormat
+                        {
+                            NumberFormat = new NumberFormat
+                            {
+                                Type = "PERCENT",
+                                Pattern = "0.00%" // or "0%" if you want whole numbers
+                            }
+                        }
+                    },
+                    Fields = "userEnteredFormat.numberFormat"
+                }
+            };
+
+            var batchUpdate = new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request> { formatRequest }
+            };
+
+            _Sheets.Spreadsheets.BatchUpdate(batchUpdate, _SpreadSheetId).Execute();
         }
     }
 }
