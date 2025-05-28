@@ -9,7 +9,6 @@ using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using ScottPlot;
-using System;
 using System.Net;
 
 namespace DofusNotes.PatchNotes
@@ -107,7 +106,7 @@ namespace DofusNotes.PatchNotes
 
                 Console.WriteLine($"Pushing data to Sheets..");
                 var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
-                await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders);
+                await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders, true);
             }
 
             _IsProcessing = false;
@@ -305,7 +304,7 @@ namespace DofusNotes.PatchNotes
 
             var pushedKey = dateOnly.ToString("yyyy_MM_dd");
             var pushedGraphs = await db.GetAsync<PushedStamp>($"Pushed/Graphs/{pushedKey}");
-            if(pushedGraphs != null )
+            if (pushedGraphs != null)
             {
                 Console.WriteLine($"Already pushed the graphs");
                 return;
@@ -543,7 +542,7 @@ namespace DofusNotes.PatchNotes
                     List<KolossiumLadder> combinedLadders = allLadders[1];
 
                     var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
-                    await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders);
+                    await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders, dateTime == nowDate);
 
                     onMsg?.Invoke($"Updated {dateTime}");
                 }
