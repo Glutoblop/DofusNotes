@@ -90,13 +90,16 @@ namespace DofusNotes.Sheets
             for (int i = 0; i < combinedRankings.Count; i++)
             {
                 KolossiumRanking? ranking = combinedRankings[i];
+
+                double winRate = double.Parse(ranking.Winrate.Replace("%", "")) / 100.0;
+
                 valueRange.Values.Add(new List<object>()
                 {
                     ranking.Name,
                     ranking.Class,
                     ranking.GlobalRank,
                     ranking.ClassRank,
-                    ranking.Winrate,
+                    winRate,
                     ranking.Server,
                     ranking.Playlist,
                     ranking.Rating,
