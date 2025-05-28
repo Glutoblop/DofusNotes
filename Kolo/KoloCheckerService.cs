@@ -148,7 +148,7 @@ namespace DofusNotes.PatchNotes
                     KolossiumLadder classLadder = await GetKolossiumLadderAsync(dateTime, playlist, i, useCache);
                     if (classLadder == null)
                     {
-                        continue;
+                        return null;
                     }
 
                     foreach (var classRank in classLadder.Rankings)
