@@ -211,76 +211,66 @@ namespace DofusNotes.PatchNotes
 
             try
             {
-                using (var httpClientHandler = new HttpClientHandler
+                await AnkamaPoll.AwaitTimestampDelay(_Services);
+                HttpClient httpClient = MyHttpClient.Complex;
+
+                var html = await httpClient.GetStringAsync(url);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                var rows = doc.DocumentNode.SelectNodes("//tr[contains(@class, 'ak-first-ladder') or contains(@class, 'ak-bg-odd') or contains(@class, 'ak-bg-even')]");
+
+                if (rows == null)
                 {
-                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-                })
-                using (var httpClient = new HttpClient(httpClientHandler))
+                    return ladder;
+                }
+
+                foreach (var row in rows)
                 {
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                                                                      "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                                                                      "Chrome/117.0.0.0 Safari/537.36");
-                    httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml");
-                    httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
-
-                    var html = await httpClient.GetStringAsync(url);
-                    var doc = new HtmlDocument();
-                    doc.LoadHtml(html);
-
-                    var rows = doc.DocumentNode.SelectNodes("//tr[contains(@class, 'ak-first-ladder') or contains(@class, 'ak-bg-odd') or contains(@class, 'ak-bg-even')]");
-
-                    if (rows == null)
+                    var cells = row.SelectNodes("td");
+                    if (cells == null || cells.Count < 7)
                     {
-                        return ladder;
+                        continue;
                     }
 
-                    foreach (var row in rows)
+                    var rankHtml = new HtmlDocument();
+                    rankHtml.LoadHtml(cells[0].InnerHtml);
+
+                    var rankNode = rankHtml.DocumentNode.SelectSingleNode("//span[contains(@class, 'ak-icon-position')]");
+                    if (rankNode == null || !int.TryParse(rankNode.InnerText.Trim(), out int rank))
                     {
-                        var cells = row.SelectNodes("td");
-                        if (cells == null || cells.Count < 7)
-                        {
-                            continue;
-                        }
-
-                        var rankHtml = new HtmlDocument();
-                        rankHtml.LoadHtml(cells[0].InnerHtml);
-
-                        var rankNode = rankHtml.DocumentNode.SelectSingleNode("//span[contains(@class, 'ak-icon-position')]");
-                        if (rankNode == null || !int.TryParse(rankNode.InnerText.Trim(), out int rank))
-                        {
-                            continue;
-                        }
-
-                        var levelCell = cells[4];
-                        var levelText = levelCell.InnerText.Trim();
-                        int level = int.TryParse(levelText, out int parsedLevel) ? parsedLevel : 0;
-
-                        // Re-parse the cell to reliably detect nested tags
-                        var levelHtml = new HtmlDocument();
-                        levelHtml.LoadHtml(levelCell.InnerHtml);
-
-                        // Now correctly checking for <span> instead of <div>
-                        bool isOmega = levelHtml.DocumentNode.SelectSingleNode("//span[contains(@class, 'ak-omega-level')]") != null;
-                        if (isOmega)
-                        {
-                            level += 200;
-                        }
-
-                        var ranking = new KolossiumRanking
-                        {
-                            Rank = int.Parse(cells[0].InnerText.Trim()),
-                            Name = cells[1].InnerText.Trim(),
-                            Class = cells[2].InnerText.Trim(),
-                            Server = cells[3].InnerText.Trim(),
-                            Level = level,
-                            Rating = int.Parse(cells[5].InnerText.Trim()),
-                            Winrate = cells[6].InnerText.Trim(),
-
-                            DayStamp = dateOnly,
-                            Playlist = playlistType
-                        };
-                        ladder.Rankings.Add(ranking);
+                        continue;
                     }
+
+                    var levelCell = cells[4];
+                    var levelText = levelCell.InnerText.Trim();
+                    int level = int.TryParse(levelText, out int parsedLevel) ? parsedLevel : 0;
+
+                    // Re-parse the cell to reliably detect nested tags
+                    var levelHtml = new HtmlDocument();
+                    levelHtml.LoadHtml(levelCell.InnerHtml);
+
+                    // Now correctly checking for <span> instead of <div>
+                    bool isOmega = levelHtml.DocumentNode.SelectSingleNode("//span[contains(@class, 'ak-omega-level')]") != null;
+                    if (isOmega)
+                    {
+                        level += 200;
+                    }
+
+                    var ranking = new KolossiumRanking
+                    {
+                        Rank = int.Parse(cells[0].InnerText.Trim()),
+                        Name = cells[1].InnerText.Trim(),
+                        Class = cells[2].InnerText.Trim(),
+                        Server = cells[3].InnerText.Trim(),
+                        Level = level,
+                        Rating = int.Parse(cells[5].InnerText.Trim()),
+                        Winrate = cells[6].InnerText.Trim(),
+
+                        DayStamp = dateOnly,
+                        Playlist = playlistType
+                    };
+                    ladder.Rankings.Add(ranking);
                 }
 
                 await db.PutAsync<KolossiumLadder>(dbPath, ladder);

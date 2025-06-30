@@ -50,29 +50,6 @@ namespace DofusNotes.PatchNotes
             _IsProcessing = false;
         }
 
-        private async Task AwaitPollingDelay()
-        {
-            var db = _Services.GetRequiredService<IDatabase>();
-            var timestamp = await db.GetAsync<TimeStamp>($"PollingDelay");
-            if (timestamp == null)
-            {
-                timestamp = new()
-                {
-                    Date = DateTime.UtcNow
-                };
-                await db.PutAsync($"PollingDelay", timestamp);
-            }
-
-            var dif = DateTime.UtcNow - timestamp.Date;
-            if (dif.TotalSeconds < 1.8f && dif.TotalSeconds > 0)
-            {
-                await Task.Delay(dif);
-            }
-
-            timestamp.Date = DateTime.UtcNow;
-            await db.PutAsync($"PollingDelay", timestamp);
-        }
-
         private static string Base64Encode(string plainText)
         {
             var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
@@ -89,12 +66,10 @@ namespace DofusNotes.PatchNotes
         {
             var db = _Services.GetRequiredService<IDatabase>();
 
-            await AwaitPollingDelay();
+            await AnkamaPoll.AwaitTimestampDelay(_Services);
 
             var web = new HtmlWeb();
             var doc = await web.LoadFromWebAsync(changeLogPage);
-
-            await db.PutAsync($"LastUpdated", new TimeStamp() { Date = DateTime.UtcNow });
 
             List<ChangeLogData> changelogs = new();
 
