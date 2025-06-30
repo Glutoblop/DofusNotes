@@ -200,9 +200,6 @@ namespace DofusNotes.PatchNotes
                 return null;
             }
 
-            //Just wait an amount of time to make sure not to hit any lockouts from the website.
-            await Task.Delay(2340);
-
             ladder = new KolossiumLadder()
             {
                 LadderType = playlist,

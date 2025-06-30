@@ -24,9 +24,9 @@ namespace ChangeLogTracker.Data
             }
 
             var dif = DateTime.UtcNow - timestamp.Date;
-            if (dif.TotalSeconds < 1.8f && dif.TotalSeconds > 0)
+            if (dif.TotalSeconds < 2.4f && dif.TotalSeconds > 0)
             {
-                await Task.Delay(dif * 2);
+                await Task.Delay(dif);
             }
 
             timestamp.Date = DateTime.UtcNow;
