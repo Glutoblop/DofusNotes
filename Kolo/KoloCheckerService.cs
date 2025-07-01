@@ -69,6 +69,7 @@ namespace DofusNotes.PatchNotes
 
         private BackgroundTask _Ticker;
         private bool _IsProcessing = false;
+        private bool _UseCache = true;
 
         public KoloCheckerService(IServiceProvider services)
         {
@@ -81,8 +82,9 @@ namespace DofusNotes.PatchNotes
             _Ticker.Start();
         }
 
-        public async Task TriggerNow()
+        public async Task TriggerNow(bool useCache)
         {
+            _UseCache = useCache;
             await OnTick();
         }
 
@@ -95,7 +97,9 @@ namespace DofusNotes.PatchNotes
 
             var dateTime = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            var allLadders = await GetKoloLaddersFromDate(dateTime);
+            var allLadders = await GetKoloLaddersFromDate(dateTime, _UseCache);
+            _UseCache = true;
+
             if (allLadders != null)
             {
                 List<KolossiumLadder> globalLadders = allLadders[0];

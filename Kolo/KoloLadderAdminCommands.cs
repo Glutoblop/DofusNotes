@@ -16,11 +16,11 @@ namespace DofusNotes.Kolo
 
         [RequireOwner]
         [SlashCommand("kolo_trigger", "Triggers kolo leaderboard tick", runMode: RunMode.Async)]
-        public async Task TriggerKolo()
+        public async Task TriggerKolo(bool force = false)
         {
             await DeferAsync(true);
 
-            await _Services.GetRequiredService<KoloCheckerService>().TriggerNow();
+            await _Services.GetRequiredService<KoloCheckerService>().TriggerNow(!force);
 
             await ModifyOriginalResponseAsync(properties =>
             {
