@@ -77,7 +77,7 @@ namespace DofusNotes.LiveStatus
                 {
                     bool force = false;
 #if DEBUG
-                    force = true;
+                    //force = true;
 #endif
 
                     //Has changed from previous check and the service is now up!
