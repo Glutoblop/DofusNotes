@@ -23,10 +23,21 @@ namespace ChangeLogTracker.Data
                 return;
             }
 
+            var now = DateTime.UtcNow;
             var dif = DateTime.UtcNow - timestamp.Date;
+
+            Console.WriteLine($"Check Ankama Site Delay: {now:HH:mm:ss} -  {timestamp.Date:HH:mm:ss} = {dif.TotalMinutes} minutes.");
+
             if (dif.TotalSeconds < 2.4f && dif.TotalSeconds > 0)
             {
-                await Task.Delay(dif);
+                var seconds = Math.Abs(2.4-dif.TotalSeconds);
+                seconds = Math.Max(0.5, seconds);
+                Console.WriteLine($"Waiting min of 0.5 seconds... {seconds} seconds");
+                await Task.Delay(TimeSpan.FromSeconds(seconds));
+            }
+            else
+            {
+                Console.WriteLine($"No delay required");
             }
 
             timestamp.Date = DateTime.UtcNow;
