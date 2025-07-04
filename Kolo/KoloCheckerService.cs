@@ -544,8 +544,14 @@ namespace DofusNotes.PatchNotes
             DateOnly dateTime = earliestTime.Value;
             DateOnly nowDate = DateOnly.FromDateTime(DateTime.Now);
 
+            var random = new Random();
+
             while (dateTime <= nowDate)
             {
+                var wait = random.Next(500, 2500);
+                onMsg?.Invoke($"Waiting .. {(wait/1000.0):N2}s before {dateTime:yyyy/MM/dd}");
+                await Task.Delay(wait);
+
                 var allLadders = await GetKoloLaddersFromDate(dateTime);
                 if (allLadders != null)
                 {
@@ -554,7 +560,7 @@ namespace DofusNotes.PatchNotes
                     var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
                     await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders, dateTime == nowDate);
 
-                    onMsg?.Invoke($"Updated {dateTime}");
+                    onMsg?.Invoke($"Updated {dateTime:yyyy/MM/dd}");
                 }
                 dateTime = dateTime.AddDays(1);
             }
