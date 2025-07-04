@@ -113,7 +113,14 @@ namespace DofusNotes.Sheets
                 // Push data
                 var updateRequest = _Sheets.Spreadsheets.Values.Update(valueRange, _SpreadSheetId, range);
                 updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
-                await updateRequest.ExecuteAsync();
+                try
+                {
+                    await updateRequest.ExecuteAsync();
+                }
+                catch (Exception ex)
+                {
+                    return;
+                }
             }
 
             // --------------------------------------------------------------
@@ -157,13 +164,20 @@ namespace DofusNotes.Sheets
                     Requests = new List<Request> { formatRequest }
                 };
 
-                await _Sheets.Spreadsheets.BatchUpdate(batchUpdate, _SpreadSheetId).ExecuteAsync();
+                try
+                {
+                    await _Sheets.Spreadsheets.BatchUpdate(batchUpdate, _SpreadSheetId).ExecuteAsync();
+                }
+                catch (Exception ex)
+                {
+                    return;
+                }
 
             }
             // ----------------------------------------------------------------------
             // ------------ UPDATE PIVOT TABLES
 
-            if(pivotUpdate)
+            if (pivotUpdate)
             {
                 Console.WriteLine("Updating Pivot Tables");
 

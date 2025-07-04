@@ -29,7 +29,37 @@ namespace DofusNotes.Kolo
         }
 
         [RequireOwner]
-        [SlashCommand("kolo_push", "Triggers all kolo data to be pushed to google sheets.", runMode: RunMode.Async)]
+        [SlashCommand("kolo_push", "Push a single yyyy/MM/dd data to google sheets", runMode: RunMode.Async)]
+        public async Task PushKolo(string dateString)
+        {
+            await DeferAsync(true);
+
+            if(!DateOnly.TryParseExact(dateString, "yyyy/MM/dd", out DateOnly targetDate))
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = "Date format needs to be yyyy/MM/dd";
+                });
+                return;
+            }
+
+            if(!await _Services.GetRequiredService<KoloCheckerService>().PushDayDataToSheets(targetDate))
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = "Failed :(";
+                });
+                return;
+            }
+
+            await ModifyOriginalResponseAsync(properties =>
+            {
+                properties.Content = "Pushed!";
+            });
+        }
+
+        [RequireOwner]
+        [SlashCommand("kolo_push_all", "Triggers all kolo data to be pushed to google sheets.", runMode: RunMode.Async)]
         public async Task PushKolo()
         {
             await DeferAsync(true);

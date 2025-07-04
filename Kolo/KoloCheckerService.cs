@@ -5,6 +5,7 @@ using Discord;
 using Discord.WebSocket;
 using DofusNotes.Data;
 using DofusNotes.Sheets;
+using Google.Apis.Sheets.v4.Data;
 using HtmlAgilityPack;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
@@ -516,6 +517,27 @@ namespace DofusNotes.PatchNotes
             return (float)((float)total / (float)total * (float)matching);
         }
 
+
+        public async Task<bool> PushDayDataToSheets(DateOnly dateOnly)
+        {
+            var db = _Services.GetRequiredService<IDatabase>();
+
+            var allLadders = await GetKoloLaddersFromDate(dateOnly);
+            if (allLadders == null)
+            {
+                return false;
+            }
+
+            DateOnly nowDate = DateOnly.FromDateTime(DateTime.Now);
+
+            List<KolossiumLadder> combinedLadders = allLadders[1];
+
+            var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
+            await googleSheet.PushDataToSheetAsync(dateOnly, combinedLadders, dateOnly == nowDate, true);
+
+            return true;
+        }
+
         public async Task PushAllDataToSheets(Action<string> onMsg = null)
         {
             var db = _Services.GetRequiredService<IDatabase>();
@@ -548,7 +570,7 @@ namespace DofusNotes.PatchNotes
 
             while (dateTime <= nowDate)
             {
-                var wait = random.Next(500, 2500);
+                var wait = random.Next(2000, 2500);
                 onMsg?.Invoke($"Waiting .. {(wait/1000.0):N2}s before {dateTime:yyyy/MM/dd}");
                 await Task.Delay(wait);
 
