@@ -558,7 +558,7 @@ namespace DofusNotes.PatchNotes
                     List<KolossiumLadder> combinedLadders = allLadders[1];
 
                     var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
-                    await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders, dateTime == nowDate);
+                    await googleSheet.PushDataToSheetAsync(dateTime, combinedLadders, dateTime == nowDate, true);
 
                     onMsg?.Invoke($"Updated {dateTime:yyyy/MM/dd}");
                 }

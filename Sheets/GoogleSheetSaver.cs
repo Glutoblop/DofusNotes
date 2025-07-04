@@ -33,7 +33,7 @@ namespace DofusNotes.Sheets
             });
         }
 
-        public async Task PushDataToSheetAsync(DateOnly dateOnly, List<KolossiumLadder> ladders, bool pivotUpdate)
+        public async Task PushDataToSheetAsync(DateOnly dateOnly, List<KolossiumLadder> ladders, bool pivotUpdate, bool force = false)
         {
             var dateStr = dateOnly.ToString("yyyy/MM/dd");
             var sheetName = $"{dateStr}";
@@ -42,7 +42,7 @@ namespace DofusNotes.Sheets
 
             var pushedKey = dateOnly.ToString("yyyy_MM_dd");
             var pushedSheet = await db.GetAsync<PushedStamp>($"Pushed/Sheet/{pushedKey}");
-            if (pushedSheet != null)
+            if (pushedSheet != null && !force)
             {
 #if !DEBUG
                 Console.WriteLine($"Already pushed the sheet");
