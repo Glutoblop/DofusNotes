@@ -53,7 +53,10 @@ namespace DofusNotes.Sheets
 
             List<KolossiumRanking> combinedRankings = ladders.SelectMany(s => s.Rankings).ToList();
 
-            var spreadsheet = _Sheets.Spreadsheets.Get(_SpreadSheetId).Execute();
+            Spreadsheet spreadsheet = _Sheets.Spreadsheets.Get(_SpreadSheetId).Execute();
+
+            // --------------------------------------------------------------------
+            // ------------- PUSH KOLO DATA
 
             {
                 bool sheetExists = spreadsheet.Sheets.Any(s => s.Properties.Title == sheetName);
@@ -116,6 +119,62 @@ namespace DofusNotes.Sheets
                 try
                 {
                     await updateRequest.ExecuteAsync();
+                }
+                catch (Exception ex)
+                {
+                    return;
+                }
+            }
+
+            // --------------------------------------------------------------------
+            // ------------ DELETE EMPTY COLUMNS
+
+            {
+                var range = $"{sheetName}";
+                var request = _Sheets.Spreadsheets.Values.Get(_SpreadSheetId, range);
+                var response = request.Execute();
+                var values = response.Values;
+
+                // Step 2: Determine the maximum column used
+                int lastUsedColumn = values.Max(row => row?.Count ?? 0);
+
+                // Step 3: Get sheet ID
+                spreadsheet = _Sheets.Spreadsheets.Get(_SpreadSheetId).Execute();
+                var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+                if (sheet == null)
+                {
+                    Console.WriteLine("Sheet not found.");
+                    return;
+                }
+                int sheetId = (int)sheet.Properties.SheetId;
+
+                // Step 4: Update the sheet properties to reduce column count
+                var updateRequest = new BatchUpdateSpreadsheetRequest
+                {
+                    Requests = new List<Request>
+                    {
+                        new Request
+                        {
+                            UpdateSheetProperties = new UpdateSheetPropertiesRequest
+                            {
+                                Properties = new SheetProperties
+                                {
+                                    SheetId = sheetId,
+                                    GridProperties = new GridProperties
+                                    {
+                                        ColumnCount = lastUsedColumn
+                                    }
+                                },
+                                Fields = "gridProperties.columnCount"
+                            }
+                        }
+                    }
+                };
+
+                try
+                {
+                    _Sheets.Spreadsheets.BatchUpdate(updateRequest, _SpreadSheetId).Execute();
+                    Console.WriteLine($"Sheet column count trimmed to {lastUsedColumn} columns.");
                 }
                 catch (Exception ex)
                 {
@@ -278,5 +337,13 @@ namespace DofusNotes.Sheets
 
             Console.WriteLine("Completed sheet operations.");
         }
+
+        static int GetSheetId(SheetsService service, string spreadsheetId, string sheetName)
+        {
+            var spreadsheet = service.Spreadsheets.Get(spreadsheetId).Execute();
+            var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+            return sheet?.Properties.SheetId ?? throw new Exception("Sheet not found.");
+        }
+
     }
 }
