@@ -18,7 +18,7 @@ namespace DofusNotes.LiveStatus
         public TimeSpan TICK_INTERVAL_TIMESPAN = TimeSpan.FromSeconds(30);
 
         private TimeSpan NormalTick = TimeSpan.FromMinutes(1);
-        private TimeSpan TuesdayTick = TimeSpan.FromSeconds(30);
+        private TimeSpan TuesdayTick = TimeSpan.FromSeconds(10);
 
         private DateTime LastChecked;
 
@@ -26,6 +26,8 @@ namespace DofusNotes.LiveStatus
         private bool _IsProcessing = false;
 
         private bool _RestartedForTuesday = false;
+
+        private bool _ForceUpdateNextTick = false;
 
         public LiveStatusService(IServiceProvider services)
         {
@@ -43,6 +45,7 @@ namespace DofusNotes.LiveStatus
 
         public async Task TriggerNow()
         {
+            _ForceUpdateNextTick = true;
             await OnTick();
         }
 
@@ -63,6 +66,8 @@ namespace DofusNotes.LiveStatus
             if (_IsProcessing) return;
             _IsProcessing = true;
 
+            Console.WriteLine($"Checking ..");
+
             LastChecked = DateTime.UtcNow;
 
             Dictionary<string, bool> previousSnapshot = await _Database.GetAsync<Dictionary<string, bool>>("LiveStatusSnapShot");
@@ -70,34 +75,28 @@ namespace DofusNotes.LiveStatus
             if (previousSnapshot == null) previousSnapshot = currentSnapshot;
             await _Database.PutAsync("LiveStatusSnapShot", currentSnapshot);
 
-            Dictionary<string, bool> cameOnline = new();
+            Dictionary<string, bool> changedStatus = new();
             foreach (var snapShot in currentSnapshot)
             {
                 if (previousSnapshot.ContainsKey(snapShot.Key))
                 {
-                    bool force = false;
+                    bool force = _ForceUpdateNextTick;
 #if DEBUG
                     //force = true;
 #endif
-
                     //Has changed from previous check and the service is now up!
-                    if
-                    (
-                        snapShot.Value &&
-                        previousSnapshot[snapShot.Key] != snapShot.Value
-                    )
+                    if (previousSnapshot[snapShot.Key] != snapShot.Value)
                     {
-                        cameOnline.TryAdd(snapShot.Key, snapShot.Value);
+                        changedStatus.TryAdd(snapShot.Key, snapShot.Value);
                     }
-                    //If force, just pretend all online ones have just come online.
-                    else if (force && snapShot.Value)
+                    else if (force)
                     {
-                        cameOnline.TryAdd(snapShot.Key, snapShot.Value);
+                        changedStatus.TryAdd(snapShot.Key, snapShot.Value);
                     }
                 }
             }
 
-            await TriggerComeOnlineNow(cameOnline);
+            await TriggerStatusChange(changedStatus);
 
             _IsProcessing = false;
         }
@@ -145,7 +144,7 @@ namespace DofusNotes.LiveStatus
         }
 
 
-        private async Task TriggerComeOnlineNow(Dictionary<string, bool> onlineNow)
+        private async Task TriggerStatusChange(Dictionary<string, bool> statusChanged)
         {
             foreach (var guild in _Client.Guilds)
             {
@@ -153,16 +152,23 @@ namespace DofusNotes.LiveStatus
                 if (iGuild == null) continue;
                 var config = await _Database.GetAsync<LiveStatusData>($"LiveStatusConfig/{guild.Id}");
                 if (config == null) continue;
-                var online = onlineNow.Keys.Where(config.DofusUpMentionRole.ContainsKey).ToList();
-                if (!online.Any()) continue;
+                var status = statusChanged.Where(s => config.DofusUpMentionRole.ContainsKey(s.Key)).ToList();
+                if (!status.Any()) continue;
 
                 var channel = await iGuild.GetChannelAsync(config.ChannelId) as ITextChannel;
                 if (channel == null) continue;
 
                 var content = $"";
-                for (int i = 0; i < online.Count; i++)
+                for (int i = 0; i < status.Count; i++)
                 {
-                    content += $"* <@&{config.DofusUpMentionRole[online[i]]}> **{online[i]}** is Online 🟢\n";
+                    if (status[i].Value)
+                    {
+                        content += $"* <@&{config.DofusUpMentionRole[status[i].Key]}> **{status[i]}** is Online 🟢\n";
+                    }
+                    else
+                    {
+                        content += $"* **{status[i]}** is Offline 🔴\n";
+                    }
                 }
                 try
                 {
