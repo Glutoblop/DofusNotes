@@ -185,7 +185,7 @@ namespace DofusNotes.PatchNotes
         public async Task<KolossiumLadder> GetKolossiumLadderAsync(DateOnly dateOnly, KolossiumLadder.EKolossiumPlaylist playlist, int breed, bool useCache = true)
         {
             string playlistType = KolossiumLadder.GetPlaylistParam(playlist);
-            var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?type={playlistType}&breeds={breed}";
+            var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?level=200&type={playlistType}&breeds={breed}";
 
             var dbPath = KolossiumLadder.GetDatabaseUrl(dateOnly, playlist, breed);
 
