@@ -107,7 +107,7 @@ namespace DofusNotes.PatchNotes
                 List<KolossiumLadder> combinedLadders = allLadders[1];
 
                 //Update the Discord charts using the global ladders (only for now)
-                await UpdateLadderChannelsGraphs(dateTime, globalLadders);
+                await UpdateLadderChannelsGraphs(dateTime, globalLadders, _UseCache);
 
                 Console.WriteLine($"Pushing data to Sheets..");
                 var googleSheet = _Services.GetRequiredService<GoogleSheetSaver>();
@@ -312,7 +312,7 @@ namespace DofusNotes.PatchNotes
             return ladder;
         }
 
-        public async Task UpdateLadderChannelsGraphs(DateOnly dateOnly, List<KolossiumLadder> ladders)
+        public async Task UpdateLadderChannelsGraphs(DateOnly dateOnly, List<KolossiumLadder> ladders, bool useCache)
         {
             Console.WriteLine($"Updating Channels with Ladder Data...");
 
@@ -320,14 +320,9 @@ namespace DofusNotes.PatchNotes
             var db = _Services.GetRequiredService<IDatabase>();
             var logger = _Services.GetRequiredService<ILogger>();
 
-            bool forcePush = false;
-#if DEBUG
-            forcePush = true;
-#endif
-
             var pushedKey = dateOnly.ToString("yyyy_MM_dd");
             var pushedGraphs = await db.GetAsync<PushedStamp>($"Pushed/Graphs/{pushedKey}");
-            if (!forcePush && pushedGraphs != null)
+            if (useCache && pushedGraphs != null)
             {
                 Console.WriteLine($"Already pushed the graphs");
                 return;
