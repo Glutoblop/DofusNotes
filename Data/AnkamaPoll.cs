@@ -31,8 +31,8 @@ namespace ChangeLogTracker.Data
             if (dif.TotalSeconds < 2.4f && dif.TotalSeconds > 0)
             {
                 var seconds = Math.Abs(2.4-dif.TotalSeconds);
-                seconds = Math.Max(0.5, seconds);
-                Console.WriteLine($"Waiting min of 0.5 seconds... {seconds} seconds");
+                seconds = Math.Max(1.2, seconds);
+                Console.WriteLine($"Waiting min of 1.2 seconds... {seconds} seconds");
                 await Task.Delay(TimeSpan.FromSeconds(seconds));
             }
             else

@@ -182,7 +182,8 @@ namespace DofusNotes.PatchNotes
             return [globalLadders, combinedLadders];
         }
 
-        public async Task<KolossiumLadder> GetKolossiumLadderAsync(DateOnly dateOnly, KolossiumLadder.EKolossiumPlaylist playlist, int breed, bool useCache = true)
+        public async Task<KolossiumLadder> GetKolossiumLadderAsync(DateOnly dateOnly, KolossiumLadder.EKolossiumPlaylist playlist, int breed, 
+            bool useCache = true, bool tryingAgain = false)
         {
             string playlistType = KolossiumLadder.GetPlaylistParam(playlist);
             var url = $"https://www.dofus.com/en/mmorpg/community/rankings/kolossium?level=200&type={playlistType}&breeds={breed}";
@@ -294,6 +295,14 @@ namespace DofusNotes.PatchNotes
             catch (Exception e)
             {
                 Console.WriteLine($"Parsing Error for Kolo {url}: {e.Message}");
+
+                if(e.Message.Contains("403") && !tryingAgain)
+                {
+                    Console.WriteLine($"403 error detected for {url}\nWaiting 10 seconds and trying again");
+                    await Task.Delay((int)TimeSpan.FromSeconds(10).TotalMilliseconds);
+                    Console.WriteLine($"Waited 10 seconds, trying again for; {url}");
+                    return await GetKolossiumLadderAsync(dateOnly, playlist, breed, useCache, true);
+                }
             }
 
             return ladder;
