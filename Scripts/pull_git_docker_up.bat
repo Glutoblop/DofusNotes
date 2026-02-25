@@ -5,7 +5,7 @@ RMDIR /S /Q build
 :: pull down my git repo, inside that repo is a script that will build itself, create docker image and run image in a local docker container
 :: it assumes docker is running on the environment you are in.
 :: TODO - Should just put the release artifacts not the entire repo for this
-git clone --branch main https://gitlab.com/nyetools/changelogtracker.git build
+git clone --branch main https://github.com/Glutoblop/DofusNotes build
 
 :: Alongside this script is a dependency for my bot, a config file the bot needs to grab when it runs, copy that in. 
 echo f | xcopy ".\config.json" ".\build\config.json"
